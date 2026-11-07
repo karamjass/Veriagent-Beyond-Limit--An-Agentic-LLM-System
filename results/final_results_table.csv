@@ -1,0 +1,15 @@
+Config #,Config Name,Model,Accuracy,k/40,Accuracy%,Fixed,Broken,Precision%,Recall%,Avg Latency(s),LLM calls/q,95% CI Low,95% CI High,Format Compliance%
+1,Solo Generator Baseline,Qwen 3.5 9B,39/40,97.5,0,0,97.5,97.5,4.68,1.0,87.12,99.56,n/a
+2,AST Calculator Only (Code Execution),Qwen 3.5 9B,37/40,92.5,0,2,92.5,92.5,1.22,1.0,80.14,97.42,n/a
+3,Qwen 3.5 9B + LLM Critic (No Calculator),Qwen 3.5 9B,39/40,97.5,0,0,97.5,97.5,5.12,2.0,87.12,99.56,n/a
+4,Qwen 3.5 9B + AST Calculator Agreement,Qwen 3.5 9B,37/40,92.5,0,2,92.5,92.5,3.75,2.0,80.14,97.42,n/a
+5,VeriAgent Multi-Agent (1 Revision Round),not run,,,,,,,,,,,
+6,VeriAgent Full Pipeline (2 Revision Rounds),not run,,,,,,,,,,,
+7,LLaMA-3 8B (VeriAgent Pipeline Ablation),not run,,,,,,,,,,,
+8,TruthfulQA Validation (Factuality MC Mode),not run,,,,,,,,,,,
+9,Structured Prompt (Qwen 3.5 9B),Qwen 3.5 9B,38/40,95.0,0,1,95.0,95.0,8.07,1.0,83.50,98.62,not re-measured
+10,+ Thinking Mode,not run,,,,,,,,,,,
+11,+ Self-Consistency (k=3),not run,,,,,,,,,,,
+12,+ SymPy / PoT,Qwen 3.5 9B,38/40,95.0,0,1,95.0,95.0,9.57,2.0,83.50,98.62,not re-measured
+13,Full Pipeline + Independent Critic,not run,,,,,,,,,,,
+14,Config 4B — Disagreement → Critic,not run,,,,,,,,,,,

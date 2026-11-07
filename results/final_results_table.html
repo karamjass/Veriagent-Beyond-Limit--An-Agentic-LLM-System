@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>VeriAgent Results</title>
+<style>
+  body { font-family: "Times New Roman", Times, serif; background: #f9f9f9; margin: 36px; color: #111; }
+  h1 { background: #6a0dad; color: #fff; padding: 14px 24px; font-size: 1.75em; letter-spacing: 2px; margin-bottom: 0; font-weight: bold; }
+  h2 { color: #6a0dad; border-bottom: 2px solid #6a0dad; padding-bottom: 4px; margin-top: 36px; font-size: 1.15em; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.98em; margin-bottom: 0; }
+  thead tr th { background: #f5c518; color: #111; padding: 10px 12px; border: 1px solid #ccc; font-weight: bold; text-align: center; }
+  tbody tr td { padding: 8px 12px; border: 1px solid #ccc; text-align: center; vertical-align: middle; }
+  tbody tr td:nth-child(2) { text-align: left; font-weight: bold; }
+  .footnote { font-size: 0.82em; color: #444; margin-top: 8px; padding: 8px 4px; border-top: 1px solid #ccc; font-style: italic; }
+  .noise { font-size: 0.88em; margin-top: 18px; padding: 10px 14px; background: #fff8e1; border-left: 4px solid #f5c518; color: #333; }
+</style>
+</head>
+<body>
+<h1>Results</h1>
+<table>
+  <thead>
+    <tr>
+      <th>#</th><th>Config</th><th>Model</th><th>Accuracy</th>
+      <th>Fixed / Broken</th><th>Recall</th><th>Precision</th>
+      <th>Avg Latency</th><th>LLM calls/q</th>
+    </tr>
+  </thead>
+  <tbody>
+<tr style="background:#fdf5e6;"><td style="font-weight:bold;color:#6a0dad;">1</td><td style="text-align:left;">Solo Generator Baseline</td><td>Qwen 3.5 9B</td><td>39/40 (97.5%)</td><td>— (baseline)</td><td>97.5%</td><td>97.5%</td><td>4.68s</td><td>1</td></tr>
+<tr style="background:#faf0dc;"><td style="font-weight:bold;color:#6a0dad;">2</td><td style="text-align:left;">AST Calculator Only (Code Execution)</td><td>Qwen 3.5 9B</td><td>37/40 (92.5%)</td><td>0 Fixed / 2 Broken</td><td>92.5%</td><td>92.5%</td><td>1.22s</td><td>1</td></tr>
+<tr style="background:#fdf5e6;"><td style="font-weight:bold;color:#6a0dad;">3</td><td style="text-align:left;">Qwen 3.5 9B + LLM Critic (No Calculator)</td><td>Qwen 3.5 9B</td><td>39/40 (97.5%)</td><td>0 Fixed / 0 Broken</td><td>97.5%</td><td>97.5%</td><td>5.12s</td><td>2</td></tr>
+<tr style="background:#faf0dc;"><td style="font-weight:bold;color:#6a0dad;">4</td><td style="text-align:left;">Qwen 3.5 9B + AST Calculator Agreement</td><td>Qwen 3.5 9B</td><td>37/40 (92.5%)</td><td>0 Fixed / 2 Broken</td><td>92.5%</td><td>92.5%</td><td>3.75s</td><td>2</td></tr>
+<tr style="background:#fdf5e6;"><td style="font-weight:bold;color:#6a0dad;">5</td><td style="text-align:left;">VeriAgent Multi-Agent (1 Revision Round)</td><td colspan="7" style="color:#888;font-style:italic;">not run</td></tr>
+<tr style="background:#faf0dc;"><td style="font-weight:bold;color:#6a0dad;">6</td><td style="text-align:left;">VeriAgent Full Pipeline (2 Revision Rounds)</td><td colspan="7" style="color:#888;font-style:italic;">not run</td></tr>
+<tr style="background:#fdf5e6;"><td style="font-weight:bold;color:#6a0dad;">7</td><td style="text-align:left;">LLaMA-3 8B (VeriAgent Pipeline Ablation)</td><td colspan="7" style="color:#888;font-style:italic;">not run</td></tr>
+<tr style="background:#faf0dc;"><td style="font-weight:bold;color:#6a0dad;">8</td><td style="text-align:left;">TruthfulQA Validation (Factuality MC Mode)</td><td colspan="7" style="color:#888;font-style:italic;">not run</td></tr>
+<tr style="background:#fdf5e6;"><td style="font-weight:bold;color:#6a0dad;">9</td><td style="text-align:left;">Structured Prompt (Qwen 3.5 9B)</td><td>Qwen 3.5 9B</td><td>38/40 (95.0%)</td><td>0 Fixed / 1 Broken</td><td>95.0%</td><td>95.0%</td><td>8.07s</td><td>1</td></tr>
+<tr style="background:#faf0dc;"><td style="font-weight:bold;color:#6a0dad;">10</td><td style="text-align:left;">+ Thinking Mode</td><td colspan="7" style="color:#888;font-style:italic;">not run</td></tr>
+<tr style="background:#fdf5e6;"><td style="font-weight:bold;color:#6a0dad;">11</td><td style="text-align:left;">+ Self-Consistency (k=3)</td><td colspan="7" style="color:#888;font-style:italic;">not run</td></tr>
+<tr style="background:#faf0dc;"><td style="font-weight:bold;color:#6a0dad;">12</td><td style="text-align:left;">+ SymPy / PoT</td><td>Qwen 3.5 9B</td><td>38/40 (95.0%)</td><td>0 Fixed / 1 Broken</td><td>95.0%</td><td>95.0%</td><td>9.57s</td><td>2</td></tr>
+<tr style="background:#fdf5e6;"><td style="font-weight:bold;color:#6a0dad;">13</td><td style="text-align:left;">Full Pipeline + Independent Critic</td><td colspan="7" style="color:#888;font-style:italic;">not run</td></tr>
+<tr style="background:#faf0dc;"><td style="font-weight:bold;color:#6a0dad;">14</td><td style="text-align:left;">Config 4B — Disagreement → Critic</td><td colspan="7" style="color:#888;font-style:italic;">not run</td></tr>
+  </tbody>
+</table>
+<div class="footnote">All results: local Ollama, N=40, seed=42, GSM8K revision 740312add88f781978c0658806c59bc2815b9866. Local Ollama (qwen3.5:9b-q4_K_M). Fixed = baseline wrong, now correct. Broken = baseline correct, now wrong. Precision = Recall = Accuracy (every question answered, TN = 0). Differences of 1–2 questions are within noise.</div>
+
+<h2>Extended Metrics — 95% Wilson CI &amp; Format Compliance</h2>
+<table>
+  <thead>
+    <tr><th>Config</th><th>Accuracy</th><th>95% Wilson CI</th><th>Format Compliance</th><th>Avg Latency</th><th>LLM calls/q</th></tr>
+  </thead>
+  <tbody>
+<tr style="background:#fdf5e6;"><td style="font-weight:bold;color:#6a0dad;">1 Solo Generator Baseline</td><td>39/40 (97.5%)</td><td>(87.1%, 99.6%)</td><td>n/a</td><td>4.68s</td><td>1</td></tr>
+<tr style="background:#faf0dc;"><td style="font-weight:bold;color:#6a0dad;">2 AST Calculator Only (Code Execution)</td><td>37/40 (92.5%)</td><td>(80.1%, 97.4%)</td><td>n/a</td><td>1.22s</td><td>1</td></tr>
+<tr style="background:#fdf5e6;"><td style="font-weight:bold;color:#6a0dad;">3 Qwen 3.5 9B + LLM Critic (No Calculator)</td><td>39/40 (97.5%)</td><td>(87.1%, 99.6%)</td><td>n/a</td><td>5.12s</td><td>2</td></tr>
+<tr style="background:#faf0dc;"><td style="font-weight:bold;color:#6a0dad;">4 Qwen 3.5 9B + AST Calculator Agreement</td><td>37/40 (92.5%)</td><td>(80.1%, 97.4%)</td><td>n/a</td><td>3.75s</td><td>2</td></tr>
+<tr style="background:#fdf5e6;"><td style="font-weight:bold;color:#6a0dad;">5 VeriAgent Multi-Agent (1 Revision Round)</td><td colspan="5" style="color:#888;font-style:italic;">not run</td></tr>
+<tr style="background:#faf0dc;"><td style="font-weight:bold;color:#6a0dad;">6 VeriAgent Full Pipeline (2 Revision Rounds)</td><td colspan="5" style="color:#888;font-style:italic;">not run</td></tr>
+<tr style="background:#fdf5e6;"><td style="font-weight:bold;color:#6a0dad;">7 LLaMA-3 8B (VeriAgent Pipeline Ablation)</td><td colspan="5" style="color:#888;font-style:italic;">not run</td></tr>
+<tr style="background:#faf0dc;"><td style="font-weight:bold;color:#6a0dad;">8 TruthfulQA Validation (Factuality MC Mode)</td><td colspan="5" style="color:#888;font-style:italic;">not run</td></tr>
+<tr style="background:#fdf5e6;"><td style="font-weight:bold;color:#6a0dad;">9 Structured Prompt (Qwen 3.5 9B)</td><td>38/40 (95.0%)</td><td>(83.5%, 98.6%)</td><td>not re-measured</td><td>8.07s</td><td>1</td></tr>
+<tr style="background:#faf0dc;"><td style="font-weight:bold;color:#6a0dad;">10 + Thinking Mode</td><td colspan="5" style="color:#888;font-style:italic;">not run</td></tr>
+<tr style="background:#fdf5e6;"><td style="font-weight:bold;color:#6a0dad;">11 + Self-Consistency (k=3)</td><td colspan="5" style="color:#888;font-style:italic;">not run</td></tr>
+<tr style="background:#faf0dc;"><td style="font-weight:bold;color:#6a0dad;">12 + SymPy / PoT</td><td>38/40 (95.0%)</td><td>(83.5%, 98.6%)</td><td>not re-measured</td><td>9.57s</td><td>2</td></tr>
+<tr style="background:#fdf5e6;"><td style="font-weight:bold;color:#6a0dad;">13 Full Pipeline + Independent Critic</td><td colspan="5" style="color:#888;font-style:italic;">not run</td></tr>
+<tr style="background:#faf0dc;"><td style="font-weight:bold;color:#6a0dad;">14 Config 4B — Disagreement → Critic</td><td colspan="5" style="color:#888;font-style:italic;">not run</td></tr>
+  </tbody>
+</table>
+
+<div class="noise"><strong>Noise note (N=40, 1 question = 2.5 pp):</strong><br>
+The 95% Wilson CI for Config 1 (97.5%) is [87.1%, 99.6%].
+All other completed configs fall within this interval.
+<strong>No statistically significant improvement over the solo baseline is claimed.</strong>
+Configs 5, 6, 7, 8, 10, 11, 13, 14 require additional run time and are marked "not run".</div>
+</body>
+</html>
