@@ -134,11 +134,16 @@ Measures how often the model invents facts on 20 false-premise questions vs. cor
 - Run: `model_core.run_hallucination_probe("data/hallucination_probe.json")`
 - Results saved to: `results/raw/hallucination_probe_results.json`
 
-### Results
-See `results/hallucination_summary.md` for the current status table and verdicts.
+### Results Summary (Verified 100% Local Runs)
 
-> **Note**: The internal fact-checker and critic share the same model weights as the generator.
-> All pipeline provenance labels read *"Self-consistency check (not external verification)"*
-> to prevent misleading claims of external factual grounding.
+| Benchmark / Probe | Baseline | VeriAgent Pipeline | 95% Wilson CI Comparison | Verdict |
+|:---|:---:|:---:|:---:|:---:|
+| **TruthfulQA MC** ($N=40$, seed 42) | 65.0% (26/40) | **75.0% (30/40)** | [49.5%, 77.9%] vs [59.8%, 85.8%] | **Inconclusive** (+4 Fixed / 0 Broken) |
+| **TruthfulQA Open-Ended** ($N=40$) | 95.0% (38/40) | **100.0% (40/40)** | [83.5%, 98.6%] vs [91.2%, 100.0%] | **Inconclusive** (+2 Fixed / 0 Broken) |
+| **Hallucination Probe** ($N=30$) | 0.0% false, 0.0% over-ref | 0.0% false, 0.0% over-ref | Identical point estimates | **Inconclusive** (Both 0/20 false premises) |
+
+*Detailed breakdowns, per-permutation accuracies, and raw audit traces are documented in [`results/hallucination_summary.md`](results/hallucination_summary.md).*
+
+> **Scientific Ground-Truth Note**: The internal fact-checker shares model weights with the generator; all UI/log labels display *"Self-consistency check (not external verification)"*. The independent judge (`llama3:latest`) serves as an automated proxy metric, not human evaluation. Neither model represents external ground truth.
 
 ---
