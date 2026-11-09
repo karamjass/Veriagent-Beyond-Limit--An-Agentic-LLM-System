@@ -610,3 +610,55 @@ html[data-theme="dark"] .history-list,
 html[data-theme="dark"] .chat-stage{
   scrollbar-color:#2e2840 transparent;
 }
+
+/* ── Privacy Notice Banner ────────────────────────────── */
+.privacy-banner {
+  background: #fef7e0;
+  border-bottom: 1px solid #f9e2af;
+  color: #7a4f01;
+  font-size: 13px;
+  line-height: 1.4;
+  padding: 8px 16px;
+  z-index: 10;
+}
+.privacy-banner-inner {
+  max-width: 960px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.privacy-icon {
+  flex-shrink: 0;
+  stroke: #b45309;
+}
+.privacy-text {
+  flex: 1;
+}
+.privacy-close-btn {
+  background: transparent;
+  border: none;
+  font-size: 18px;
+  line-height: 1;
+  color: #92400e;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.privacy-close-btn:hover {
+  background: rgba(180, 83, 9, 0.15);
+}
+html[data-theme="dark"] .privacy-banner {
+  background: #2a2215;
+  border-bottom: 1px solid #4a3b1a;
+  color: #fef3c7;
+}
+html[data-theme="dark"] .privacy-icon {
+  stroke: #fcd34d;
+}
+html[data-theme="dark"] .privacy-close-btn {
+  color: #fcd34d;
+}
+html[data-theme="dark"] .privacy-close-btn:hover {
+  background: rgba(252, 211, 77, 0.15);
+}

@@ -72,7 +72,7 @@ function getFirstName(user) {
     raw = user.email.split('@')[0];
   }
   if (!raw) return 'User';
-  // Strip trailing numbers (e.g. karamjass16 -> karamjass)
+  // Strip trailing numbers (e.g. user16 -> user)
   raw = raw.replace(/\d+$/, '');
   const firstWord = raw.split(/[\s._-]+/)[0] || raw;
   return firstWord.charAt(0).toUpperCase() + firstWord.slice(1);
@@ -97,10 +97,24 @@ function getCsrfToken() {
   return csrfToken || getCookie('veriagent_csrf') || '';
 }
 
+let apiBaseUrl = localStorage.getItem('veriagent_backend_url') || '';
+
+function getApiUrl(path) {
+  if (!apiBaseUrl) return path;
+  return `${apiBaseUrl.replace(/\/+$/, '')}${path}`;
+}
+
 async function apiFetch(url, options = {}) {
   const opts = { ...options };
   opts.headers = { ...(opts.headers || {}) };
-  opts.credentials = 'same-origin';
+  
+  let targetUrl = url;
+  if (apiBaseUrl && url.startsWith('/api/')) {
+    targetUrl = getApiUrl(url);
+    opts.credentials = 'include';
+  } else {
+    opts.credentials = 'same-origin';
+  }
 
   if (currentSupabaseSession && currentSupabaseSession.access_token) {
     opts.headers['Authorization'] = `Bearer ${currentSupabaseSession.access_token}`;
@@ -114,7 +128,7 @@ async function apiFetch(url, options = {}) {
     }
   }
 
-  return fetch(url, opts);
+  return fetch(targetUrl, opts);
 }
 
 function showToast(message) {
@@ -664,8 +678,7 @@ async function handleGoogleSignIn() {
   }
 
   // Local Google Sign-In flow
-  const defaultGoogleEmail = currentUser?.email || 'karamjass16@gmail.com';
-  const emailInput = window.prompt('Sign in with Google Account:\nEnter your Google / Gmail address:', defaultGoogleEmail);
+  const emailInput = window.prompt('Sign in with Google Account:\nEnter your Google / Gmail address:');
   if (!emailInput || !emailInput.trim()) return;
 
   const email = emailInput.trim();
@@ -681,6 +694,13 @@ async function handleGoogleSignIn() {
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
+      if (res.status === 404) {
+        const isNetlify = window.location.hostname.endsWith('netlify.app');
+        if (isNetlify && !apiBaseUrl) {
+          throw new Error('Backend not found (404). Netlify only hosts static files. Run `python app.py` and enter your Tunnel URL.');
+        }
+        throw new Error('Backend server not reachable (404). Ensure `python app.py` is running and browse http://127.0.0.1:5000 or set your Tunnel URL.');
+      }
       throw new Error(err.error || `Google sign-in failed (${res.status})`);
     }
     const data = await res.json();
@@ -743,14 +763,37 @@ async function handleAuthFormSubmit(event) {
         await refreshConversationsList();
       }
     } else {
-      // Local development authentication (bound to SQLite)
+      // Check for user-specified backend URL (for static hosts like Netlify)
+      const backendUrlInput = document.getElementById('authBackendUrl');
+      if (backendUrlInput) {
+        const inputUrl = backendUrlInput.value.trim().replace(/\/+$/, '');
+        if (inputUrl !== apiBaseUrl) {
+          apiBaseUrl = inputUrl;
+          if (apiBaseUrl) {
+            localStorage.setItem('veriagent_backend_url', apiBaseUrl);
+          } else {
+            localStorage.removeItem('veriagent_backend_url');
+          }
+        }
+      }
+
+      // Local development or Demo access code authentication
+      const accessCodeInput = document.getElementById('authDemoCode');
+      const access_code = accessCodeInput ? accessCodeInput.value.trim() : '';
       const response = await apiFetch('/api/auth/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, display_name: name, is_sign_up: isSignUpMode })
+        body: JSON.stringify({ email, password, display_name: name, is_sign_up: isSignUpMode, access_code })
       });
       if (!response.ok) {
         const errPayload = await response.json().catch(() => ({}));
+        if (response.status === 404) {
+          const isNetlify = window.location.hostname.endsWith('netlify.app');
+          if (isNetlify && !apiBaseUrl) {
+            throw new Error('Backend not found (404). Netlify only hosts static frontend files. Start `python app.py`, start your tunnel, and enter your Tunnel URL in the field above.');
+          }
+          throw new Error('Backend server not reachable at this URL (404). Please ensure the Flask app is running (`python app.py`) and browse to http://127.0.0.1:5000, not a static file server.');
+        }
         throw new Error(errPayload.error || `Authentication failed (${response.status})`);
       }
       const data = await response.json();
@@ -846,6 +889,23 @@ async function initAuth() {
   const dbType = (authConfig?.database_type || 'sqlite').toUpperCase();
   if (dbModeLabel) dbModeLabel.textContent = dbType;
   if (dbStatus) dbStatus.classList.add('connected');
+
+  // Unhide demo access code field in demo mode
+  if (authConfig?.requires_access_code || authConfig?.is_demo) {
+    const demoField = document.getElementById('authDemoCodeField');
+    if (demoField) demoField.hidden = false;
+  }
+
+  // Unhide backend URL field when on static hosting (e.g. Netlify) or when custom URL is set
+  const isStaticHost = window.location.hostname.endsWith('netlify.app') || window.location.hostname.endsWith('github.io') || (!['localhost', '127.0.0.1'].includes(window.location.hostname) && !window.location.port);
+  const backendUrlInput = document.getElementById('authBackendUrl');
+  const backendUrlField = document.getElementById('authBackendUrlField');
+  if (backendUrlInput) {
+    backendUrlInput.value = apiBaseUrl;
+  }
+  if (backendUrlField && (isStaticHost || apiBaseUrl)) {
+    backendUrlField.hidden = false;
+  }
 
   // Configure Supabase client if keys are present and library loaded
   if (authConfig?.supabase_configured && window.supabase && authConfig.supabase_url && authConfig.supabase_anon_key) {

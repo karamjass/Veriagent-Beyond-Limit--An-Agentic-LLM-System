@@ -147,3 +147,36 @@ Measures how often the model invents facts on 20 false-premise questions vs. cor
 > **Scientific Ground-Truth Note**: The internal fact-checker shares model weights with the generator; all UI/log labels display *"Self-consistency check (not external verification)"*. The independent judge (`llama3:latest`) serves as an automated proxy metric, not human evaluation. Neither model represents external ground truth.
 
 ---
+
+## Security (Basic Controls, Not Penetration-Tested)
+
+VeriAgent is prepared for controlled public demonstrations over reverse tunnels (such as Cloudflare Tunnel or ngrok) with a suite of defense-in-depth basic controls. It is **not** penetration-tested or certified for multi-tenant SaaS environments.
+
+### Security Controls Summary
+
+1. **Access Control & Tunnel Protection**:
+   - `DEMO_ACCESS_CODE`: In demo mode (`VERIAGENT_ENV=demo` or `VERIAGENT_ENV=public`), automatic `remote_addr` localhost logins are completely disabled. An explicit demo access code is verified using constant-time comparison (`hmac.compare_digest`).
+   - `TRUSTED_PROXY`: The `X-Forwarded-For` header is only used for client IP resolution when `TRUSTED_PROXY=1` is explicitly set in `.env`.
+   - Cookie Hardening: Session cookies are marked `HttpOnly`, `SameSite=Lax`, and `Secure` when behind HTTPS or in production/demo mode.
+2. **Abuse Protection & Rate Limiting**:
+   - `Flask-Limiter`: Enforces per-client in-memory rate limiting (default: 10 requests/minute for `/api/chat`, 2 requests/minute for `/api/benchmarks/run`). Documented limitation: single-worker in-memory storage (`memory://`).
+   - Input Bounds: Maximum prompt length capped at 2,000 characters (`MAX_PROMPT_LENGTH`). Maximum request body size capped at 1 MB (`MAX_CONTENT_LENGTH`).
+   - Concurrency Throttling: Active generation semaphore caps concurrent inference at 2 requests, immediately returning HTTP 503 (`"Server is busy processing other reasoning requests"`) to prevent VRAM exhaustion.
+3. **Emergency Controls**:
+   - `ADMIN_KILL_SWITCH`: Setting `ADMIN_KILL_SWITCH=1` causes all chat and benchmark execution endpoints to immediately return HTTP 503.
+4. **Network Exposure & Isolation**:
+   - Local Loopback Validation: Ollama must be bound to `127.0.0.1:11434`; a startup check loudly warns if configured to external or non-loopback addresses (`0.0.0.0`).
+   - Flask binds strictly to `127.0.0.1`. Debug mode is disabled by default (`debug=False`).
+   - Static Asset Restriction: Direct static file serving is restricted to an allowlist of root assets (`styles.css`, `app.js`, `favicon.ico`, `robots.txt`) and dedicated files in `static/`. Public requests for `results/`, `data/`, source code (`*.py`), and `.env` files are strictly rejected with HTTP 403 Forbidden.
+5. **Browser Defenses & Security Headers**:
+   - `X-Frame-Options: DENY` (clickjacking defense).
+   - `X-Content-Type-Options: nosniff`.
+   - `Content-Security-Policy: default-src 'self'; frame-ancestors 'none';`. *Documented limitation: `'unsafe-inline'` is maintained for index.html UI handlers/styles.*
+   - Strict `Cache-Control: no-store` on all API endpoints.
+6. **Zero-Trust Math Evaluation**:
+   - `SafeMathEvaluator` AST defenses restrict execution to approved nodes, banning dunder attributes (`__class__`), raw imports, string formatting, large exponents ($> 1000$), AST bombs ($> 150$ nodes), and long snippets ($> 2000$ chars).
+7. **Privacy & Audit Logging**:
+   - Prominent UI disclaimer: *"VeriAgent processes all reasoning queries locally on your device via Ollama. Please do not submit confidential or sensitive information in public demos."*
+   - Audit logger records timestamp, hashed client IP (`sha256[:8]`), route, status, and latency. Prompts, passwords, and tokens are never logged.
+
+*Full audit findings and risk ratings are documented in [`results/security_audit.md`](results/security_audit.md).*

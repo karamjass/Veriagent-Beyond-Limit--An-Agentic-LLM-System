@@ -1,0 +1,6 @@
+# Netlify Redirects Configuration for VeriAgent
+# Netlify hosts static frontend files (index.html, styles.css, app.js).
+# The Python Flask backend and Ollama run locally on your machine.
+# If you run a tunnel (e.g. Cloudflare Tunnel or ngrok), you can proxy /api/* to your live tunnel URL:
+# /api/*  https://YOUR-TUNNEL-URL.trycloudflare.com/api/:splat  200!
+

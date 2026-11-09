@@ -2,6 +2,33 @@
 
 All notable changes and architectural improvements in this release of VeriAgent.
 
+## [2.5.0] - 2026-11-09
+
+### Security (basic controls, not penetration-tested)
+* **Access Control & Tunnel Protection (H2 Fix)**:
+  - In demo/public mode (`VERIAGENT_ENV=demo` or `VERIAGENT_ENV=public`), disabled automatic `remote_addr` localhost logins completely.
+  - Required `DEMO_ACCESS_CODE` environment variable with constant-time verification (`hmac.compare_digest`) before issuing session cookies.
+  - Added support for `TRUSTED_PROXY=1`; `X-Forwarded-For` is strictly ignored when unset to prevent client IP spoofing.
+  - Added secret key validation refusing to boot with default placeholder keys in demo and production environments.
+* **Abuse Protection & Rate Limiting (H1 & H3 Fixes)**:
+  - Integrated `Flask-Limiter` with client IP and authenticated user keying (10 req/min for chat, 2 req/min for benchmark runs), returning clear HTTP 429 status codes. In-memory single-worker storage (`memory://`).
+  - Added active generation concurrency cap (maximum 2 concurrent reasoning tasks), returning HTTP 503 (`"Server is busy processing other reasoning requests"`) to prevent VRAM exhaustion.
+  - Capped maximum prompt length to 2,000 characters (`MAX_PROMPT_LENGTH`) and request body to 1 MB (`MAX_CONTENT_LENGTH`).
+* **Emergency Administration**:
+  - Implemented `ADMIN_KILL_SWITCH=1` returning immediate HTTP 503 on all generation endpoints.
+* **Network Isolation & Asset Protection (M3 & M5 Fixes)**:
+  - Restricted static file serving strictly to an allowlist of root assets (`styles.css`, `app.js`, `favicon.ico`, `robots.txt`) and `static/` directory with safe file extensions. Requests to `results/`, `data/`, source code (`*.py`), and `.env` files are blocked with HTTP 403 Forbidden.
+  - Added startup safety check warning loudly if `OLLAMA_BASE_URL` is bound to a non-loopback address (`0.0.0.0`).
+* **Browser Protections & Security Headers (M4 Fix)**:
+  - Configured `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, and strict `Cache-Control: no-store` on API routes.
+  - Added Content-Security-Policy (CSP) restricting frame embedding and cross-origin access. (Known limitation: `'unsafe-inline'` documented in `results/security_audit.md` for inline UI compatibility).
+* **SafeMathEvaluator AST Defenses**:
+  - Hardened AST execution against attribute traversal (`__class__`), string formatting, excessive exponents ($> 1000$), AST bombs ($> 150$ nodes), and oversized expressions ($> 2000$ chars).
+* **Automated Security Test Suite**:
+  - Added 21 automated security test cases in `tests/test_security.py` covering auth rejection, tunnel simulation, rate limits, kill switch, security headers, and AST injection defenses. Full suite: 65 tests, 100% passing.
+* **Security Documentation**:
+  - Documented audit findings in `results/security_audit.md`, automated scans in `results/security_scan.md`, and prompt injection attacks in `results/security_injection_tests.md`.
+
 ## [2.4.0] - 2026-11-08
 
 ### Hallucination Probe Audit & Multi-Judge Infrastructure

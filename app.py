@@ -64,6 +64,37 @@ app = Flask(__name__, static_folder=None)
 # Restrict request body size to 1MB to prevent large-payload memory exhaustion
 app.config["MAX_CONTENT_LENGTH"] = 1 * 1024 * 1024
 
+CORS_ALLOWED_ORIGINS = {
+    origin.strip()
+    for origin in os.environ.get(
+        "CORS_ALLOWED_ORIGINS",
+        "https://veriagent.netlify.app,http://localhost:5000,http://127.0.0.1:5000",
+    ).split(",")
+    if origin.strip()
+}
+
+
+def _is_origin_allowed(origin: str | None) -> bool:
+    if not origin:
+        return False
+    if origin in CORS_ALLOWED_ORIGINS or origin.endswith(".netlify.app"):
+        return True
+    return False
+
+
+@app.before_request
+def handle_cors_preflight():
+    if request.method == "OPTIONS":
+        origin = request.headers.get("Origin")
+        if _is_origin_allowed(origin):
+            res = make_response("", 204)
+            res.headers["Access-Control-Allow-Origin"] = origin
+            res.headers["Access-Control-Allow-Credentials"] = "true"
+            res.headers["Access-Control-Allow-Headers"] = "Content-Type, X-CSRF-Token, Authorization"
+            res.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+            res.headers["Access-Control-Max-Age"] = "86400"
+            return res
+
 
 @app.before_request
 def start_request_timer():
@@ -77,6 +108,13 @@ def add_security_headers(response: Response) -> Response:
     response.headers.setdefault("X-Frame-Options", "DENY")
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
     response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+
+    origin = request.headers.get("Origin")
+    if _is_origin_allowed(origin):
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type, X-CSRF-Token, Authorization"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
 
     # Strict Content-Security-Policy (CSP)
     # Known limitation documented in security_audit.md: 'unsafe-inline' is retained for index.html UI handlers/styles
@@ -194,14 +232,25 @@ if IS_PRODUCTION:
 
 def _get_secret_key() -> str:
     """Return the secret key for session signing."""
-    if FLASK_SECRET_KEY:
-        if (IS_PRODUCTION or IS_DEMO) and FLASK_SECRET_KEY in INSECURE_SECRET_KEYS:
+    secret = os.environ.get("FLASK_SECRET_KEY", "").strip() or FLASK_SECRET_KEY
+    is_demo = (
+        os.environ.get("VERIAGENT_ENV", "").strip().lower() in ("demo", "public")
+        or bool(os.environ.get("DEMO_ACCESS_CODE", "").strip())
+        or IS_DEMO
+    )
+    is_prod = (
+        IS_PRODUCTION
+        or os.environ.get("VERIAGENT_ENV", "").strip().lower() == "production"
+    )
+
+    if secret:
+        if (is_prod or is_demo) and secret in INSECURE_SECRET_KEYS:
             raise RuntimeError(
                 "FLASK_SECRET_KEY is set to an insecure default placeholder. "
                 "A strong, unique secret key is required in production and demo modes."
             )
-        return FLASK_SECRET_KEY
-    if IS_PRODUCTION or IS_DEMO:
+        return secret
+    if is_prod or is_demo:
         raise RuntimeError("FLASK_SECRET_KEY is required in production and demo modes.")
     # Local development persistent key
     instance_dir = BASE_DIR / "instance"
@@ -984,12 +1033,17 @@ def auth_session() -> Response:
     if os.environ.get("TRUSTED_PROXY", "").strip() in ("1", "true", "yes") and request.headers.get("X-Forwarded-Proto", "").lower() == "https":
         is_secure_conn = True
 
+    origin = request.headers.get("Origin")
+    is_cross_origin = _is_origin_allowed(origin) and origin != request.host_url.rstrip("/")
+    samesite_val = "None" if is_cross_origin else "Lax"
+    secure_val = True if is_cross_origin else (IS_PRODUCTION or demo_mode or is_secure_conn)
+
     resp.set_cookie(
         SESSION_COOKIE,
         cookie_val,
         httponly=True,
-        samesite="Lax",
-        secure=(IS_PRODUCTION or demo_mode or is_secure_conn),
+        samesite=samesite_val,
+        secure=secure_val,
         max_age=7 * 86400,
     )
     return resp
@@ -1156,9 +1210,14 @@ def import_conversations() -> Response:
 # ── Chat Endpoint ─────────────────────────────────────────────────────────────
 
 @app.route("/api/chat", methods=["POST"])
+@limiter.limit(lambda: f"{os.environ.get('RATE_LIMIT_PER_MINUTE', 10)}/minute")
 def chat_endpoint() -> Response:
     """Run reasoning pipeline and persist user and assistant messages."""
     import model_core as mc
+
+    # Admin emergency kill switch check
+    if os.environ.get("ADMIN_KILL_SWITCH", "").strip() in ("1", "true", "yes"):
+        return jsonify({"error": "Service temporarily suspended by administrator."}), 503
 
     db = get_db_session()
     user, err, status = authenticate_request(db, require_csrf=True)
@@ -1171,8 +1230,10 @@ def chat_endpoint() -> Response:
 
     if not question:
         return jsonify({"error": "question is required"}), 400
-    if len(question) > 4000:
-        return jsonify({"error": "question exceeds 4 000-character limit"}), 400
+
+    max_prompt_len = int(os.environ.get("MAX_PROMPT_LENGTH", 2000))
+    if len(question) > max_prompt_len:
+        return jsonify({"error": f"question exceeds {max_prompt_len}-character limit"}), 400
 
     # Retrieve or create conversation owned by caller
     conv: Conversation | None = None
@@ -1211,16 +1272,23 @@ def chat_endpoint() -> Response:
     conv.updated_at = datetime.now(timezone.utc)
     db.commit()
 
+    # Concurrent generation throttle
+    global ACTIVE_GENERATIONS
+    with GENERATION_LOCK:
+        if ACTIVE_GENERATIONS >= MAX_CONCURRENT_GENERATIONS:
+            return jsonify({
+                "error": "Server is busy processing other reasoning requests. Please retry in a few moments."
+            }), 503
+        ACTIVE_GENERATIONS += 1
+
     try:
         result = mc.answer_question(question, history)
     except mc.ModelUnavailable as exc:
         return (
             jsonify(
                 {
-                    "error": str(exc),
-                    "hint": (
-                        f"Start Ollama and install the model with: ollama pull {mc.MODEL}"
-                    ),
+                    "error": "Reasoning model service is currently unavailable.",
+                    "hint": f"Start Ollama and install the model with: ollama pull {mc.MODEL}",
                     "conversation_id": conv.id,
                 }
             ),
@@ -1229,6 +1297,9 @@ def chat_endpoint() -> Response:
     except Exception:  # noqa: BLE001
         traceback.print_exc()
         return jsonify({"error": "An internal inference error occurred.", "conversation_id": conv.id}), 500
+    finally:
+        with GENERATION_LOCK:
+            ACTIVE_GENERATIONS -= 1
 
     # Save assistant message
     assistant_msg = Message(
@@ -1281,9 +1352,14 @@ def list_benchmarks() -> Response:
 
 
 @app.route("/api/benchmarks/run", methods=["POST"])
+@limiter.limit("2/minute")
 def run_benchmark_endpoint() -> Response:
     """Execute a benchmark pilot evaluation and record its summary in the database."""
     import model_core as mc
+
+    # Admin emergency kill switch check
+    if os.environ.get("ADMIN_KILL_SWITCH", "").strip() in ("1", "true", "yes"):
+        return jsonify({"error": "Service temporarily suspended by administrator."}), 503
 
     db = get_db_session()
     user, err, status = authenticate_request(db, require_csrf=True)
@@ -1299,6 +1375,15 @@ def run_benchmark_endpoint() -> Response:
     gsm8k_limit = max(0, min(gsm8k_limit, 40))
     truthfulqa_limit = max(0, min(truthfulqa_limit, 50))
 
+    # Concurrent generation throttle
+    global ACTIVE_GENERATIONS
+    with GENERATION_LOCK:
+        if ACTIVE_GENERATIONS >= MAX_CONCURRENT_GENERATIONS:
+            return jsonify({
+                "error": "Server is busy processing other tasks. Please retry in a few moments."
+            }), 503
+        ACTIVE_GENERATIONS += 1
+
     try:
         summary = mc.run_benchmarks(
             gsm8k_limit=gsm8k_limit,
@@ -1307,11 +1392,15 @@ def run_benchmark_endpoint() -> Response:
             progress=False,
         )
     except mc.ModelUnavailable as exc:
-        return jsonify({"error": str(exc), "hint": f"Start Ollama and install the model with: ollama pull {mc.MODEL}"}), 503
+        return jsonify({"error": "Model unavailable", "hint": f"Start Ollama and install the model with: ollama pull {mc.MODEL}"}), 503
     except RuntimeError as exc:
-        return jsonify({"error": str(exc), "hint": "Install optional benchmark data support with: pip install datasets"}), 503
+        return jsonify({"error": "Benchmark datasets unavailable", "hint": "Install optional benchmark data support with: pip install datasets"}), 503
     except Exception as exc:
-        return jsonify({"error": f"Benchmark evaluation error: {exc}"}), 500
+        traceback.print_exc()
+        return jsonify({"error": "Benchmark evaluation error occurred."}), 500
+    finally:
+        with GENERATION_LOCK:
+            ACTIVE_GENERATIONS -= 1
 
     gsm_data = summary.get("gsm8k", {})
     tqa_data = summary.get("truthfulqa", {})
@@ -1348,12 +1437,17 @@ if __name__ == "__main__":
         sys.exit(1)
 
     get_engine()
+    check_ollama_host_safety()
 
     port = int(os.environ.get("PORT", 5000))
+    is_dev = os.environ.get("DEV", "").strip() in ("1", "true", "yes") or os.environ.get("FLASK_DEBUG", "").strip() in ("1", "true", "yes")
     print(f"VeriAgent starting on http://127.0.0.1:{port}/")
     print(f"Database: {'PostgreSQL via DATABASE_URL' if DATABASE_URL else 'SQLite at instance/veriagent.db'}")
-    print(f"Auth: {'Supabase Auth configured' if SUPABASE_URL and SUPABASE_ANON_KEY else 'Local single-user mode (localhost only)'}")
+    if IS_DEMO:
+        print("Security Mode: DEMO / PUBLIC (access code required, auto-login disabled)")
+    else:
+        print(f"Auth: {'Supabase Auth configured' if SUPABASE_URL and SUPABASE_ANON_KEY else 'Local single-user mode (localhost only)'}")
     import model_core as mc
     print(f"Model: {mc.MODEL} via Ollama at {mc.OLLAMA_BASE_URL}")
     print("Press Ctrl+C to stop.")
-    app.run(host="127.0.0.1", port=port, debug=False, threaded=True)
+    app.run(host="127.0.0.1", port=port, debug=is_dev, threaded=True)
