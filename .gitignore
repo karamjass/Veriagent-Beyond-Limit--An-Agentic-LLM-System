@@ -1,0 +1,28 @@
+# Environment & Secrets
+.env
+.env.local
+.env.*.local
+!.env.example
+instance/.secret_key
+
+# Database & Runtime Instance
+instance/
+*.db
+*.sqlite
+*.sqlite3
+results/.run.lock
+
+# Python cache & virtual environment
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+
+# Scratch & Temporary Logs
+scratch/
+*.log
+.coverage
+htmlcov/
+

@@ -15,6 +15,7 @@ import re
 import threading
 import time
 from typing import Any
+from urllib.parse import urlparse
 
 DEFAULT_MODEL = "qwen3.5:9b-q4_K_M"
 OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://127.0.0.1:11434").rstrip("/")
@@ -35,6 +36,26 @@ OLLAMA_TIMEOUT_SECONDS = float(os.environ.get("OLLAMA_TIMEOUT_SECONDS", "300"))
 # 2048 context = safe for 12GB VRAM laptop; raise only if stable.
 OLLAMA_CONTEXT_TOKENS = int(os.environ.get("OLLAMA_CONTEXT_TOKENS", "2048"))
 _model_lock = threading.RLock()
+
+
+def is_loopback_address(url_or_host: str) -> bool:
+    """Return True if the target URL or hostname resolves strictly to a loopback address."""
+    try:
+        parsed = urlparse(url_or_host)
+        host = parsed.hostname or url_or_host
+        return host.strip("[]").lower() in ("127.0.0.1", "localhost", "::1")
+    except Exception:
+        return False
+
+
+if not is_loopback_address(OLLAMA_BASE_URL):
+    import warnings
+    warnings.warn(
+        f"[SECURITY WARNING] OLLAMA_BASE_URL is configured to non-loopback address: '{OLLAMA_BASE_URL}'. "
+        "Ollama has no built-in auth; binding to public/external interfaces may allow unauthenticated access.",
+        UserWarning,
+        stacklevel=2,
+    )
 
 
 class ModelUnavailable(RuntimeError):
@@ -673,12 +694,19 @@ class SafeMathEvaluator:
         self.scope["print"] = lambda *args: self.printed_values.extend(args)
 
     def _validate_ast(self, node: ast.AST) -> None:
+        total_nodes = 0
         for subnode in ast.walk(node):
+            total_nodes += 1
+            if total_nodes > 150:
+                raise ValueError(f"AST node count exceeds safety threshold: {total_nodes} > 150")
             if not isinstance(subnode, self.ALLOWED_NODES):
                 raise ValueError(f"Disallowed AST node: {type(subnode).__name__}")
             if isinstance(subnode, ast.Name):
                 if subnode.id.startswith("__"):
                     raise ValueError(f"Dunder identifiers forbidden: {subnode.id}")
+            if isinstance(subnode, ast.Call):
+                if not isinstance(subnode.func, ast.Name):
+                    raise ValueError(f"Call target must be an approved identifier, got: {type(subnode.func).__name__}")
             if isinstance(subnode, ast.BinOp) and isinstance(subnode.op, ast.Pow):
                 if isinstance(subnode.right, (ast.Constant, ast.Num)):
                     val = getattr(subnode.right, "value", None)
@@ -730,18 +758,29 @@ class SafeMathEvaluator:
             idx = self._eval_node(node.slice)
             return val[idx]
         if isinstance(node, ast.Call):
-            func = self._eval_node(node.func)
+            if not isinstance(node.func, ast.Name):
+                raise ValueError("Call target must be an approved identifier")
+            if node.func.id not in self.scope:
+                raise ValueError(f"Unapproved function name: {node.func.id}")
+            func = self.scope[node.func.id]
             if not callable(func):
                 raise ValueError(f"Target is not callable: {func}")
             if func not in self.scope.values() and not isinstance(func, (sympy.core.function.FunctionClass, type)):
                 raise ValueError(f"Unapproved function call: {func}")
             args = [self._eval_node(arg) for arg in node.args]
+            if node.func.id == "pow" and len(args) >= 2:
+                exp = args[1]
+                if isinstance(exp, (int, float)) and abs(exp) > self.MAX_POWER:
+                    raise ValueError("pow() exponent exceeds safety limit")
             return func(*args)
         raise ValueError(f"Unsupported node type for evaluation: {type(node).__name__}")
 
     def execute_snippet(self, code_str: str) -> float | None:
         """Parse and execute a math snippet with AST validation and strict timeout."""
-        tree = ast.parse(code_str.strip(), mode="exec")
+        clean_code = code_str.strip()
+        if len(clean_code) > 2000:
+            raise ValueError("Code snippet exceeds maximum length of 2000 characters")
+        tree = ast.parse(clean_code, mode="exec")
         self._validate_ast(tree)
         last_val = None
         for stmt in tree.body:

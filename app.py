@@ -32,14 +32,17 @@ import os
 import re
 import secrets
 import sys
+import threading
 import time
 import traceback
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 from flask import Flask, Response, jsonify, make_response, request, send_from_directory
+from flask_limiter import Limiter
 from sqlalchemy import (
     Boolean,
     Column,
@@ -58,16 +61,52 @@ from sqlalchemy.orm import declarative_base, relationship, scoped_session, sessi
 BASE_DIR = Path(__file__).parent.resolve()
 
 app = Flask(__name__, static_folder=None)
-app.config["MAX_CONTENT_LENGTH"] = 4 * 1024 * 1024
+# Restrict request body size to 1MB to prevent large-payload memory exhaustion
+app.config["MAX_CONTENT_LENGTH"] = 1 * 1024 * 1024
+
+
+@app.before_request
+def start_request_timer():
+    request._start_time = time.time()
+
 
 @app.after_request
 def add_security_headers(response: Response) -> Response:
-    """Apply low-risk browser protections and prevent caching of account/chat API data."""
+    """Apply defense-in-depth browser protections and audit logging."""
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
     response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+
+    # Strict Content-Security-Policy (CSP)
+    # Known limitation documented in security_audit.md: 'unsafe-inline' is retained for index.html UI handlers/styles
+    csp = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline'; "
+        "style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data:; "
+        "connect-src 'self'; "
+        "font-src 'self'; "
+        "object-src 'none'; "
+        "base-uri 'self'; "
+        "frame-ancestors 'none';"
+    )
+    response.headers.setdefault("Content-Security-Policy", csp)
     if request.path.startswith("/api/"):
-        response.headers["Cache-Control"] = "no-store"
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+
+    # Lightweight structured audit log: timestamp, sha256(IP)[:8], route, status, latency
+    # Prompts, tokens, and secrets are strictly suppressed from logs
+    if request.path.startswith("/api/"):
+        start_t = getattr(request, "_start_time", None)
+        duration_ms = (time.time() - start_t) * 1000 if start_t else 0.0
+        client_ip = get_client_ip()
+        ip_hash = hashlib.sha256(client_ip.encode("utf-8")).hexdigest()[:8]
+        print(
+            f"[AUDIT] {datetime.now(timezone.utc).isoformat()} | IP:{ip_hash} | "
+            f"{request.method} {request.path} -> {response.status_code} ({duration_ms:.1f}ms)",
+            file=sys.stderr,
+        )
     return response
 
 
@@ -80,10 +119,56 @@ IS_PRODUCTION = (
     or os.environ.get("PRODUCTION", "").strip().lower() in ("1", "true", "yes")
 )
 
+DEMO_ACCESS_CODE = os.environ.get("DEMO_ACCESS_CODE", "").strip()
+IS_DEMO = (
+    os.environ.get("VERIAGENT_ENV", "").strip().lower() in ("demo", "public")
+    or bool(DEMO_ACCESS_CODE)
+)
+
+ADMIN_KILL_SWITCH = os.environ.get("ADMIN_KILL_SWITCH", "").strip() in ("1", "true", "yes")
+TRUSTED_PROXY = os.environ.get("TRUSTED_PROXY", "").strip() in ("1", "true", "yes")
+MAX_PROMPT_LENGTH = int(os.environ.get("MAX_PROMPT_LENGTH", "2000"))
+RATE_LIMIT_PER_MINUTE = int(os.environ.get("RATE_LIMIT_PER_MINUTE", "10"))
+
+INSECURE_SECRET_KEYS = {
+    "your-long-random-secret-key-min-32-chars",
+    "dev-secret-key-change-in-production",
+    "secret",
+    "changeme",
+    "default",
+    "replace-with-a-random-demo-code",
+}
+
 DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "").strip()
 SUPABASE_ANON_KEY = os.environ.get("SUPABASE_ANON_KEY", "").strip()
 FLASK_SECRET_KEY = os.environ.get("FLASK_SECRET_KEY", "").strip()
+
+
+def get_client_ip() -> str:
+    """Resolve client IP safely; reads X-Forwarded-For only when TRUSTED_PROXY is enabled."""
+    trusted = os.environ.get("TRUSTED_PROXY", "").strip() in ("1", "true", "yes")
+    if trusted and request.headers.get("X-Forwarded-For"):
+        forwarded = request.headers.get("X-Forwarded-For", "").split(",")
+        if forwarded and forwarded[0].strip():
+            return forwarded[0].strip()
+    return request.remote_addr or "127.0.0.1"
+
+
+def check_ollama_host_safety() -> None:
+    """Warn loudly if Ollama is configured to a non-loopback address."""
+    ollama_url = os.environ.get("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
+    try:
+        host = urlparse(ollama_url).hostname or ""
+        if host.strip("[]").lower() not in ("127.0.0.1", "localhost", "::1"):
+            print(
+                f"WARNING [SECURITY]: OLLAMA_BASE_URL is configured to non-loopback address: '{host}'. "
+                "Ollama has no built-in auth; binding to public interfaces exposes model inference to the internet!",
+                file=sys.stderr,
+            )
+    except Exception as exc:
+        print(f"WARNING [SECURITY]: Could not validate OLLAMA_BASE_URL: {exc}", file=sys.stderr)
+
 
 # Production must fail closed if required environment configuration is missing.
 PRODUCTION_CONFIG_ERROR: str | None = None
@@ -110,9 +195,14 @@ if IS_PRODUCTION:
 def _get_secret_key() -> str:
     """Return the secret key for session signing."""
     if FLASK_SECRET_KEY:
+        if (IS_PRODUCTION or IS_DEMO) and FLASK_SECRET_KEY in INSECURE_SECRET_KEYS:
+            raise RuntimeError(
+                "FLASK_SECRET_KEY is set to an insecure default placeholder. "
+                "A strong, unique secret key is required in production and demo modes."
+            )
         return FLASK_SECRET_KEY
-    if IS_PRODUCTION:
-        raise RuntimeError("FLASK_SECRET_KEY is required in production.")
+    if IS_PRODUCTION or IS_DEMO:
+        raise RuntimeError("FLASK_SECRET_KEY is required in production and demo modes.")
     # Local development persistent key
     instance_dir = BASE_DIR / "instance"
     instance_dir.mkdir(parents=True, exist_ok=True)
@@ -589,7 +679,51 @@ def authenticate_request(
     return None, "Authentication required. Please sign in to start chatting.", 401
 
 
+# ── Abuse Protection & Concurrency Controls ───────────────────────────────────
+
+ACTIVE_GENERATIONS = 0
+GENERATION_LOCK = threading.Lock()
+MAX_CONCURRENT_GENERATIONS = 2
+
+
+def _rate_limit_key() -> str:
+    """Resolve rate limiting identity: authenticated user ID or client IP."""
+    cookie_val = request.cookies.get(SESSION_COOKIE)
+    if cookie_val:
+        verified = _verify_session_cookie(cookie_val)
+        if verified:
+            user_id, _ = verified
+            return f"user:{user_id}"
+    return f"ip:{get_client_ip()}"
+
+
+# Note: In-memory single-worker rate limiting. Documented in security_audit.md.
+limiter = Limiter(
+    key_func=_rate_limit_key,
+    app=app,
+    storage_uri="memory://",
+    default_limits=[],
+    strategy="fixed-window",
+)
+
+
+@app.errorhandler(429)
+def ratelimit_handler(e):
+    return jsonify({
+        "error": "Rate limit exceeded. Maximum requests per minute reached.",
+        "retry_after_seconds": 60,
+    }), 429
+
+
 # ── Static Asset Helpers ──────────────────────────────────────────────────────
+
+ALLOWED_ROOT_ASSETS = {
+    "styles.css",
+    "app.js",
+    "favicon.ico",
+    "robots.txt",
+}
+
 
 @app.route("/")
 def index() -> Response:
@@ -599,22 +733,35 @@ def index() -> Response:
 
 @app.route("/<path:filename>")
 def static_files(filename: str) -> Response:
-    """Serve CSS, JS, images, and other static assets from the project folder.
+    """Serve allowlisted static assets strictly.
 
-    Protected: blocks database files, scripts, and private directories.
+    Restricted: blocks results/, data/, instance/, tests/, documentation (*.md),
+    source code (*.py), and environment secrets (.env).
     """
     clean_name = filename.replace("\\", "/").strip("/")
     path_parts = [part for part in clean_name.split("/") if part]
-    blocked_dirs = {"instance", "uploads", ".git", "__pycache__"}
-    blocked_suffixes = (".py", ".db", ".sqlite", ".sqlite3", ".env", ".log")
-    if (
-        not path_parts
-        or any(part.startswith(".") or part in blocked_dirs for part in path_parts)
-        or any(clean_name.lower().endswith(suffix) for suffix in blocked_suffixes)
-        or ".." in path_parts
-    ):
+    if not path_parts or ".." in path_parts or any(p.startswith(".") for p in path_parts):
         return jsonify({"error": "Access denied"}), 403
-    return send_from_directory(BASE_DIR, filename)
+
+    # Allow exact root assets
+    if len(path_parts) == 1 and clean_name in ALLOWED_ROOT_ASSETS:
+        return send_from_directory(BASE_DIR, clean_name)
+
+    # Allow subfiles strictly within 'static/' directory with safe asset extensions
+    safe_extensions = {".png", ".jpg", ".jpeg", ".svg", ".ico", ".css", ".js", ".woff2", ".woff"}
+    if path_parts[0] == "static":
+        static_dir = BASE_DIR / "static"
+        requested_file = (BASE_DIR / clean_name).resolve()
+        try:
+            requested_file.relative_to(static_dir.resolve())
+        except ValueError:
+            return jsonify({"error": "Access denied"}), 403
+        if requested_file.suffix.lower() in safe_extensions and requested_file.is_file():
+            rel_path = str(requested_file.relative_to(static_dir))
+            return send_from_directory(static_dir, rel_path)
+
+    # All other files (results/, data/, instance/, tests/, *.md, *.py, .env, etc.) are forbidden
+    return jsonify({"error": "Access denied"}), 403
 
 
 # ── Health Endpoint ───────────────────────────────────────────────────────────
@@ -645,6 +792,10 @@ def health() -> Response:
     if IS_PRODUCTION and auth_mode != "supabase":
         auth_mode = "unconfigured_production"
 
+    raw_error = model_state.get("error")
+    # Sanitize socket errors from public display
+    sanitized_error = "Model connection unavailable" if raw_error else None
+
     return jsonify(
         {
             "status": "ok" if (db_ok and model_state.get("connected") and not PRODUCTION_CONFIG_ERROR) else "setup_needed",
@@ -654,7 +805,7 @@ def health() -> Response:
             "model_revision": None,
             "ollama_connected": bool(model_state.get("connected")),
             "model_available": bool(model_state.get("model_available")),
-            "model_error": model_state.get("error"),
+            "model_error": sanitized_error,
             "database": {
                 "ready": db_ok,
                 "engine": db_type,
@@ -696,16 +847,19 @@ def auth_config() -> Response:
         )
 
     auth_mode = "supabase" if (SUPABASE_URL and SUPABASE_ANON_KEY) else "local_dev"
+    demo_active = (os.environ.get("VERIAGENT_ENV", "").strip().lower() in ("demo", "public") or bool(os.environ.get("DEMO_ACCESS_CODE", "").strip()))
     return jsonify(
         {
-            "auth_mode": auth_mode,
-            "mode": "production" if IS_PRODUCTION else "development",
+            "auth_mode": "demo" if demo_active else auth_mode,
+            "mode": "demo" if demo_active else ("production" if IS_PRODUCTION else "development"),
             "supabase_configured": bool(SUPABASE_URL and SUPABASE_ANON_KEY),
             "database_type": "postgresql" if DATABASE_URL else "sqlite",
             "supabase_url": SUPABASE_URL if SUPABASE_URL else None,
             "supabase_anon_key": SUPABASE_ANON_KEY if SUPABASE_ANON_KEY else None,
             "is_production": IS_PRODUCTION,
-            "local_dev_allowed": (not IS_PRODUCTION and not SUPABASE_URL),
+            "is_demo": demo_active,
+            "requires_access_code": bool(demo_active and os.environ.get("DEMO_ACCESS_CODE", "").strip()),
+            "local_dev_allowed": (not IS_PRODUCTION and not demo_active and not SUPABASE_URL),
         }
     )
 
@@ -721,6 +875,10 @@ def auth_session() -> Response:
     token = payload.get("access_token", "").strip()
     email = str(payload.get("email", "")).strip().lower()
     display_name_input = str(payload.get("display_name", "")).strip()
+    access_code = str(payload.get("access_code", "")).strip()
+
+    demo_mode = (os.environ.get("VERIAGENT_ENV", "").strip().lower() in ("demo", "public") or bool(os.environ.get("DEMO_ACCESS_CODE", "").strip()))
+    demo_secret = os.environ.get("DEMO_ACCESS_CODE", "").strip()
 
     user: User | None = None
     if token:
@@ -737,9 +895,54 @@ def auth_session() -> Response:
             )
             db.add(user)
             db.commit()
+
+    elif demo_mode:
+        # In demo/public mode, remote_addr auto-login is completely DISABLED!
+        # Always require DEMO_ACCESS_CODE.
+        if not demo_secret:
+            return jsonify({"error": "Server DEMO_ACCESS_CODE is not configured."}), 503
+
+        # Constant-time comparison to prevent timing side channels
+        if not access_code or not hmac.compare_digest(access_code, demo_secret):
+            return jsonify({"error": "Valid demo access code required."}), 401
+
+        # Valid demo access code provided
+        if email:
+            if "@" not in email:
+                return jsonify({"error": "Please enter a valid email address."}), 400
+            user_id = f"demo-{hashlib.sha256(email.encode('utf-8')).hexdigest()[:16]}"
+            user = db.query(User).filter_by(id=user_id).first()
+            derived_name = _extract_first_name(display_name_input, email)
+            if not user:
+                user = User(
+                    id=user_id,
+                    email=email,
+                    display_name=derived_name,
+                    avatar_url="",
+                )
+                db.add(user)
+                db.commit()
+            else:
+                if user.display_name != derived_name:
+                    user.display_name = derived_name
+                    db.commit()
+        else:
+            # Shared demo guest session
+            user = db.query(User).filter_by(id="demo-guest").first()
+            if not user:
+                user = User(
+                    id="demo-guest",
+                    email="demo@veriagent.local",
+                    display_name="Demo Guest",
+                    avatar_url="",
+                )
+                db.add(user)
+                db.commit()
+
     elif not IS_PRODUCTION and not SUPABASE_URL:
-        # Local development authentication (bound to localhost)
-        if request.remote_addr not in ("127.0.0.1", "::1", "localhost"):
+        # Standard local development authentication (bound strictly to localhost)
+        client_ip = get_client_ip()
+        if client_ip not in ("127.0.0.1", "::1", "localhost"):
             return jsonify({"error": "Single-user mode restricted to localhost."}), 401
 
         if email:
@@ -772,17 +975,21 @@ def auth_session() -> Response:
             {
                 "user": user.to_dict(),
                 "csrf_token": csrf_token,
-                "auth_mode": "supabase" if SUPABASE_URL else "local_dev",
+                "auth_mode": "demo" if demo_mode else ("supabase" if SUPABASE_URL else "local_dev"),
                 "authenticated": True,
             }
         )
     )
+    is_secure_conn = request.is_secure
+    if os.environ.get("TRUSTED_PROXY", "").strip() in ("1", "true", "yes") and request.headers.get("X-Forwarded-Proto", "").lower() == "https":
+        is_secure_conn = True
+
     resp.set_cookie(
         SESSION_COOKIE,
         cookie_val,
         httponly=True,
         samesite="Lax",
-        secure=(IS_PRODUCTION or request.is_secure),
+        secure=(IS_PRODUCTION or demo_mode or is_secure_conn),
         max_age=7 * 86400,
     )
     return resp
