@@ -68,16 +68,6 @@
       <section class="chat-stage" id="chatStage" aria-label="Conversation">
         <div class="welcome" id="welcomeState">
           <h1 class="greeting" id="greeting" aria-live="polite"></h1>
-          <div class="welcome-auth-card" id="welcomeAuthCard" hidden>
-            <p>Sign in to start chatting and automatically save your conversations.</p>
-            <div class="welcome-auth-buttons">
-              <button type="button" class="google-auth-btn" id="welcomeGoogleBtn">
-                <svg class="google-icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/><path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/><path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/><path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/></svg>
-                <span>Continue with Google</span>
-              </button>
-              <button type="button" class="gate-login-btn welcome-gate-btn" id="welcomeLoginBtn">Sign In with Email</button>
-            </div>
-          </div>
         </div>
         <div class="message-list" id="messageList" role="log" aria-live="polite" aria-relevant="additions text"></div>
         <div class="thinking-row" id="thinkingRow" hidden>
@@ -87,19 +77,6 @@
       </section>
 
       <div class="composer-area">
-        <div class="composer-auth-gate" id="composerAuthGate" hidden>
-          <div class="composer-auth-gate-text">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-            <span>Please sign in to start chatting</span>
-          </div>
-          <div class="gate-actions">
-            <button type="button" class="google-auth-btn gate-google-btn" id="gateGoogleBtn">
-              <svg class="google-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/><path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/><path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/><path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/></svg>
-              <span>Google</span>
-            </button>
-            <button type="button" class="gate-login-btn" id="gateLoginBtn">Sign In</button>
-          </div>
-        </div>
         <form class="composer" id="composer">
           <label class="sr-only" for="messageInput">Message VeriAgent</label>
           <textarea id="messageInput" rows="1" maxlength="3000" placeholder="Message VeriAgent…" autocomplete="off"></textarea>
@@ -116,48 +93,5 @@
   </div>
   <div class="mobile-scrim" id="mobileScrim" hidden></div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-
-  <div class="auth-modal" id="authModal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="authModalTitle">
-    <div class="auth-modal-backdrop" id="authModalBackdrop"></div>
-    <div class="auth-modal-card">
-      <button class="auth-modal-close" id="authModalClose" type="button" aria-label="Close auth dialog">&times;</button>
-      <div class="auth-modal-header">
-        <h3 id="authModalTitle">Welcome to VeriAgent</h3>
-        <p id="authModalSubtitle">Sign in to start chatting and automatically save your conversations.</p>
-      </div>
-      <button type="button" class="google-auth-btn" id="googleAuthBtn">
-        <svg class="google-icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/><path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/><path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/><path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/></svg>
-        <span id="googleAuthBtnLabel">Continue with Google</span>
-      </button>
-      <div class="auth-divider"><span>or continue with email</span></div>
-      <div class="auth-tabs" id="authTabs" role="tablist">
-        <button class="auth-tab is-active" id="tabSignIn" type="button" role="tab" aria-selected="true">Sign In</button>
-        <button class="auth-tab" id="tabSignUp" type="button" role="tab" aria-selected="false">Sign Up</button>
-      </div>
-      <form class="auth-form" id="authForm" novalidate>
-        <div class="auth-field" id="authBackendUrlField" hidden>
-          <label for="authBackendUrl">Backend Server / Tunnel URL</label>
-          <input type="url" id="authBackendUrl" name="backend_url" placeholder="https://xxxx.trycloudflare.com" autocomplete="url">
-        </div>
-        <div class="auth-field" id="authDemoCodeField" hidden>
-          <label for="authDemoCode">Demo Access Code</label>
-          <input type="password" id="authDemoCode" name="access_code" placeholder="Enter demo access code" autocomplete="off">
-        </div>
-        <div class="auth-field" id="authNameField" hidden>
-          <label for="authName">First Name</label>
-          <input type="text" id="authName" name="name" placeholder="Your first name" autocomplete="given-name">
-        </div>
-        <div class="auth-field">
-          <label for="authEmail">Email</label>
-          <input type="email" id="authEmail" name="email" placeholder="you@domain.com" autocomplete="email" required>
-        </div>
-        <div class="auth-field">
-          <label for="authPassword">Password</label>
-          <input type="password" id="authPassword" name="password" placeholder="••••••••" autocomplete="current-password" required minlength="6">
-        </div>
-        <div class="auth-error" id="authError" hidden role="alert"></div>
-        <button type="submit" class="auth-submit-btn" id="authSubmitBtn">Sign In</button>
-      </form>
-    </div>
-  </div></body>
+</body>
 </html>

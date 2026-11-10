@@ -1254,7 +1254,7 @@ def chat_endpoint() -> Response:
         db.query(Message)
         .filter(Message.conversation_id == conv.id)
         .order_by(Message.created_at.desc())
-        .limit(12)
+        .limit(6)
         .all()
     )
     history = [

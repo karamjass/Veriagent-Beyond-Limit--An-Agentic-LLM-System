@@ -231,16 +231,13 @@ function findConversation(id = currentConversationId) {
 
 function updateGreeting() {
   if (!greetingHeading) return;
-  const nameText = currentUser ? getFirstName(currentUser) : '';
   const hour = new Date().getHours();
   const salutation = hour >= 5 && hour < 12
     ? 'Good morning'
     : hour >= 12 && hour < 17
       ? 'Good afternoon'
-      : hour >= 17 && hour < 22
-        ? 'Good evening'
-        : 'Hello';
-  greetingHeading.textContent = nameText ? `${salutation}, ${nameText}!` : `${salutation}!`;
+      : 'Good evening';
+  greetingHeading.textContent = `${salutation}!`;
 }
 
 function startNewConversation() {
@@ -454,11 +451,6 @@ function updateThinkingLabel(text) {
 }
 
 async function sendMessage(rawText = messageInput.value) {
-  if (!currentUser) {
-    showToast('Please sign in before chatting.');
-    openAuthModal();
-    return;
-  }
   const prompt = rawText.trim();
   if (!prompt || isSending) return;
   if (prompt.length > 3000) {
@@ -594,18 +586,10 @@ async function autoMigrateLocalChatsIfAny() {
 // -------------------------------------------------------------
 
 function lockChatUI() {
-  if (composerAuthGate) composerAuthGate.hidden = false;
-  if (welcomeAuthCard) welcomeAuthCard.hidden = false;
-  if (messageInput) {
-    messageInput.disabled = true;
-    messageInput.placeholder = 'Please sign in to start chatting…';
-  }
-  if (sendButton) sendButton.disabled = true;
+  unlockChatUI();
 }
 
 function unlockChatUI() {
-  if (composerAuthGate) composerAuthGate.hidden = true;
-  if (welcomeAuthCard) welcomeAuthCard.hidden = true;
   if (messageInput) {
     messageInput.disabled = false;
     messageInput.placeholder = 'Message VeriAgent…';
@@ -614,30 +598,18 @@ function unlockChatUI() {
 }
 
 function updateAuthState(user) {
-  currentUser = user;
-  updateProfileUI(user);
-  if (user) {
-    unlockChatUI();
-  } else {
-    lockChatUI();
-  }
+  currentUser = user || { id: 'local-dev-user', display_name: 'User' };
+  updateProfileUI(currentUser);
+  unlockChatUI();
   updateGreeting();
 }
 
 function openAuthModal() {
-  if (!authModal) return;
-  authModal.hidden = false;
-  authModal.setAttribute('aria-hidden', 'false');
-  if (authError) authError.hidden = true;
-  authEmail?.focus();
+  return;
 }
 
 function closeAuthModal() {
-  if (!authModal) return;
-  authModal.hidden = true;
-  authModal.setAttribute('aria-hidden', 'true');
-  if (authForm) authForm.reset();
-  if (authError) authError.hidden = true;
+  return;
 }
 
 function setAuthMode(signUp) {
@@ -661,226 +633,43 @@ function setAuthMode(signUp) {
 }
 
 async function handleGoogleSignIn() {
-  if (authConfig?.supabase_configured && supabaseClient) {
-    try {
-      const { error } = await supabaseClient.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: window.location.origin
-        }
-      });
-      if (error) throw error;
-      return;
-    } catch (err) {
-      showToast(err.message || 'Google OAuth failed');
-      return;
-    }
-  }
-
-  // Local Google Sign-In flow
-  const emailInput = window.prompt('Sign in with Google Account:\nEnter your Google / Gmail address:');
-  if (!emailInput || !emailInput.trim()) return;
-
-  const email = emailInput.trim();
-  try {
-    const res = await apiFetch('/api/auth/session', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email,
-        display_name: email.split('@')[0],
-        provider: 'google'
-      })
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      if (res.status === 404) {
-        const isNetlify = window.location.hostname.endsWith('netlify.app');
-        if (isNetlify && !apiBaseUrl) {
-          throw new Error('Backend not found (404). Netlify only hosts static files. Run `python app.py` and enter your Tunnel URL.');
-        }
-        throw new Error('Backend server not reachable (404). Ensure `python app.py` is running and browse http://127.0.0.1:5000 or set your Tunnel URL.');
-      }
-      throw new Error(err.error || `Google sign-in failed (${res.status})`);
-    }
-    const data = await res.json();
-    csrfToken = data.csrf_token || csrfToken;
-    updateAuthState(data.user);
-    closeAuthModal();
-    const name = getFirstName(data.user);
-    showToast(`Signed in with Google as ${name}`);
-    await refreshConversationsList();
-  } catch (err) {
-    showToast(err.message || 'Google sign-in failed');
-  }
+  return;
 }
 
 async function handleAuthFormSubmit(event) {
-  event.preventDefault();
-  const email = (authEmail?.value || '').trim();
-  const password = authPassword?.value || '';
-  const name = (authName?.value || '').trim();
-
-  if (!email || !password) {
-    if (authError) {
-      authError.textContent = 'Please enter both email and password.';
-      authError.hidden = false;
-    }
-    return;
-  }
-
-  authSubmitBtn.disabled = true;
-  authSubmitBtn.textContent = isSignUpMode ? 'Creating account…' : 'Signing in…';
-  if (authError) authError.hidden = true;
-
-  try {
-    // If Supabase is configured, use Supabase client
-    if (authConfig?.supabase_configured && supabaseClient) {
-      if (isSignUpMode) {
-        const { data, error } = await supabaseClient.auth.signUp({
-          email,
-          password,
-          options: name ? { data: { full_name: name, name: name } } : undefined
-        });
-        if (error) throw error;
-        if (data.session) {
-          currentSupabaseSession = data.session;
-          await syncSessionWithBackend(data.session);
-          showToast('Signed up and authenticated successfully!');
-          closeAuthModal();
-          await refreshConversationsList();
-        } else {
-          showToast('Sign up successful! Please check your email to confirm your account.');
-          closeAuthModal();
-        }
-      } else {
-        const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        currentSupabaseSession = data.session;
-        await syncSessionWithBackend(data.session);
-        showToast('Signed in successfully!');
-        closeAuthModal();
-        await refreshConversationsList();
-      }
-    } else {
-      // Check for user-specified backend URL (for static hosts like Netlify)
-      const backendUrlInput = document.getElementById('authBackendUrl');
-      if (backendUrlInput) {
-        const inputUrl = backendUrlInput.value.trim().replace(/\/+$/, '');
-        if (inputUrl !== apiBaseUrl) {
-          apiBaseUrl = inputUrl;
-          if (apiBaseUrl) {
-            localStorage.setItem('veriagent_backend_url', apiBaseUrl);
-          } else {
-            localStorage.removeItem('veriagent_backend_url');
-          }
-        }
-      }
-
-      // Local development or Demo access code authentication
-      const accessCodeInput = document.getElementById('authDemoCode');
-      const access_code = accessCodeInput ? accessCodeInput.value.trim() : '';
-      const response = await apiFetch('/api/auth/session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, display_name: name, is_sign_up: isSignUpMode, access_code })
-      });
-      if (!response.ok) {
-        const errPayload = await response.json().catch(() => ({}));
-        if (response.status === 404) {
-          const isNetlify = window.location.hostname.endsWith('netlify.app');
-          if (isNetlify && !apiBaseUrl) {
-            throw new Error('Backend not found (404). Netlify only hosts static frontend files. Start `python app.py`, start your tunnel, and enter your Tunnel URL in the field above.');
-          }
-          throw new Error('Backend server not reachable at this URL (404). Please ensure the Flask app is running (`python app.py`) and browse to http://127.0.0.1:5000, not a static file server.');
-        }
-        throw new Error(errPayload.error || `Authentication failed (${response.status})`);
-      }
-      const data = await response.json();
-      csrfToken = data.csrf_token || csrfToken;
-      updateAuthState(data.user);
-      closeAuthModal();
-      const firstName = getFirstName(data.user);
-      showToast(`Signed in as ${firstName}`);
-      await autoMigrateLocalChatsIfAny();
-      await refreshConversationsList();
-    }
-  } catch (err) {
-    if (authError) {
-      authError.textContent = err.message || 'Authentication failed. Please verify credentials.';
-      authError.hidden = false;
-    }
-  } finally {
-    authSubmitBtn.disabled = false;
-    authSubmitBtn.textContent = isSignUpMode ? 'Sign Up' : 'Sign In';
-  }
+  if (event) event.preventDefault();
+  return;
 }
 
 async function syncSessionWithBackend(session) {
-  if (!session) return;
-  try {
-    const response = await apiFetch('/api/auth/session', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ access_token: session.access_token })
-    });
-    if (!response.ok) throw new Error(`Session sync failed (${response.status})`);
-    const payload = await response.json();
-    csrfToken = payload.csrf_token || csrfToken;
-    if (payload.user) updateAuthState(payload.user);
-  } catch (error) {
-    showToast('Could not verify the sign-in session with VeriAgent.');
-  }
+  return;
 }
 
 async function handleLogout() {
-  if (supabaseClient) {
-    await supabaseClient.auth.signOut().catch(() => {});
-  }
-  currentSupabaseSession = null;
   await apiFetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
-  showToast('Logged out of session.');
-  updateAuthState(null);
+  showToast('Conversations cleared.');
   conversations = [];
   currentConversationId = null;
   messageList.replaceChildren();
   if (welcomeState) welcomeState.hidden = false;
   renderHistory();
-  openAuthModal();
 }
 
 function updateProfileUI(user) {
-  if (user && (user.email || user.id)) {
-    const isOwner = (user.email && user.email.toLowerCase().includes('karam')) || (user.display_name && user.display_name.toLowerCase().includes('karam')) || user.id === 'local-dev-user';
-    const firstName = getFirstName(user);
-    if (profileName) profileName.textContent = isOwner ? 'Karamjass Kaur' : firstName;
-    if (profileStatusSub) {
-      profileStatusSub.textContent = isOwner ? 'Owner & Creator · Qwen 3.5 9B' : 'Signed in';
-    }
-    if (authBtnLabel) authBtnLabel.textContent = 'LOGOUT';
-    if (authBtn) {
-      authBtn.classList.add('authenticated');
-      authBtn.title = `Signed in as ${user.email || firstName} (Click to sign out)`;
-    }
-    if (authBtnDot) authBtnDot.style.background = '#2a9d59';
-  } else {
-    if (profileName) profileName.textContent = 'Karamjass Kaur';
-    if (profileStatusSub) profileStatusSub.textContent = 'Owner & Creator · Qwen 3.5 9B';
-    if (authBtnLabel) authBtnLabel.textContent = 'SIGN IN';
-    if (authBtn) {
-      authBtn.classList.remove('authenticated');
-      authBtn.title = 'Click to sign in';
-    }
-    if (authBtnDot) authBtnDot.style.background = '#c0506e';
-  }
+  if (profileName) profileName.textContent = 'Karamjass Kaur';
+  if (profileStatusSub) profileStatusSub.textContent = 'Owner & Creator · Qwen 3.5 9B';
   updateGreeting();
 }
 
 async function initAuth() {
+  unlockChatUI();
+  updateGreeting();
+
   try {
     const res = await apiFetch('/api/auth/config', { cache: 'no-store' });
-    const configPayload = await res.json();
-    authConfig = configPayload;
+    if (res.ok) {
+      authConfig = await res.json();
+    }
   } catch {
     authConfig = { mode: 'development', auth_mode: 'local_dev', supabase_configured: false, database_type: 'sqlite' };
   }
@@ -890,80 +679,33 @@ async function initAuth() {
   if (dbModeLabel) dbModeLabel.textContent = dbType;
   if (dbStatus) dbStatus.classList.add('connected');
 
-  // Unhide demo access code field in demo mode
-  if (authConfig?.requires_access_code || authConfig?.is_demo) {
-    const demoField = document.getElementById('authDemoCodeField');
-    if (demoField) demoField.hidden = false;
-  }
-
-  // Unhide backend URL field when on static hosting (e.g. Netlify) or when custom URL is set
-  const isStaticHost = window.location.hostname.endsWith('netlify.app') || window.location.hostname.endsWith('github.io') || (!['localhost', '127.0.0.1'].includes(window.location.hostname) && !window.location.port);
-  const backendUrlInput = document.getElementById('authBackendUrl');
-  const backendUrlField = document.getElementById('authBackendUrlField');
-  if (backendUrlInput) {
-    backendUrlInput.value = apiBaseUrl;
-  }
-  if (backendUrlField && (isStaticHost || apiBaseUrl)) {
-    backendUrlField.hidden = false;
-  }
-
-  // Configure Supabase client if keys are present and library loaded
-  if (authConfig?.supabase_configured && window.supabase && authConfig.supabase_url && authConfig.supabase_anon_key) {
-    try {
-      supabaseClient = window.supabase.createClient(authConfig.supabase_url, authConfig.supabase_anon_key);
-      const { data: { session } } = await supabaseClient.auth.getSession();
-      if (session) {
-        currentSupabaseSession = session;
-        await syncSessionWithBackend(session);
-        updateAuthState(session.user);
-      } else {
-        updateAuthState(null);
-        openAuthModal();
-      }
-      supabaseClient.auth.onAuthStateChange(async (event, session) => {
-        currentSupabaseSession = session;
-        if (session) {
-          await syncSessionWithBackend(session);
-          updateAuthState(session.user);
-        } else {
-          updateAuthState(null);
-          openAuthModal();
-        }
-      });
-    } catch {
-      updateAuthState(null);
-      openAuthModal();
-    }
-  } else {
-    // Check if session cookie exists via /api/auth/user
-    try {
-      const uRes = await apiFetch('/api/auth/user');
-      if (uRes.ok) {
-        const uData = await uRes.json();
-        csrfToken = uData.csrf_token || '';
-        updateAuthState(uData.user);
-        await autoMigrateLocalChatsIfAny();
-      } else {
-        updateAuthState(null);
-        openAuthModal();
-      }
-    } catch {
-      updateAuthState(null);
-      openAuthModal();
-    }
-  }
-
-  if (authEnvPill && authEnvNote) {
-    if (authConfig?.mode === 'production') {
-      authEnvPill.textContent = 'Production';
-      authEnvNote.textContent = authConfig?.supabase_configured
-        ? 'Connected to Supabase Auth.'
-        : 'Supabase credentials are required in production.';
+  // Silently check or establish session in background without any popup or modal
+  try {
+    const uRes = await apiFetch('/api/auth/user');
+    if (uRes.ok) {
+      const uData = await uRes.json();
+      csrfToken = uData.csrf_token || '';
+      currentUser = uData.user || { id: 'local-dev-user', display_name: 'User' };
     } else {
-      authEnvPill.textContent = 'Local Dev';
-      authEnvNote.textContent = 'Enter your email and password to sign in or create an account locally.';
+      const sRes = await apiFetch('/api/auth/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      });
+      if (sRes.ok) {
+        const sData = await sRes.json();
+        csrfToken = sData.csrf_token || '';
+        currentUser = sData.user || { id: 'local-dev-user', display_name: 'User' };
+      } else {
+        currentUser = { id: 'local-dev-user', display_name: 'User' };
+      }
     }
+  } catch {
+    currentUser = { id: 'local-dev-user', display_name: 'User' };
   }
+
+  unlockChatUI();
+  updateGreeting();
 }
 
 // -------------------------------------------------------------
