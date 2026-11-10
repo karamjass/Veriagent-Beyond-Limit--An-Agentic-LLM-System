@@ -4,6 +4,7 @@ VeriAgent is a 100% local, privacy-first multi-agent reasoning and verification 
 
 Created and owned by **Karamjass Kaur**, VeriAgent is built upon the **Qwen 3.5 9B** foundation model running locally via Ollama with zero paid external API dependencies.
 
+Live server : https://veriagent.netlify.app/
 ---
 
 ## Key Capabilities
