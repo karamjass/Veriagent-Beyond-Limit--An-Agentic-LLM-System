@@ -1,0 +1,410 @@
+{
+  "benchmark": "Long-Context QA",
+  "model": "qwen3.5:9b-q4_K_M",
+  "seed": 42,
+  "total_questions": 15,
+  "baseline": {
+    "correct": 1,
+    "accuracy": 0.0667,
+    "avg_f1": 0.0333,
+    "avg_latency_s": 19.81
+  },
+  "pipeline": {
+    "correct": 15,
+    "accuracy": 1.0,
+    "avg_f1": 0.397,
+    "avg_latency_s": 10.27
+  },
+  "results": [
+    {
+      "doc_id": "doc_tech_history",
+      "doc_title": "The Evolution of Microprocessor Architecture (1971–2024)",
+      "approx_words": 1030,
+      "approx_tokens": 1373,
+      "question_id": "q1a",
+      "question": "How many transistors did the Intel 4004 contain, and what was its clock speed?",
+      "gold_answer": "2,300 transistors and 740 kHz",
+      "answer_location": "start",
+      "baseline": {
+        "answer": "",
+        "latency_s": 18.33,
+        "token_f1": 0.0,
+        "keyword_match": false,
+        "exact_substring": false,
+        "correct": false
+      },
+      "pipeline": {
+        "answer": "Based on the provided document:\n\nTransistor Count: The Intel 4004 contained exactly 2,300 transistors.\nClock Speed: It ran at a clock speed of 740 kHz.\n\nThese figures are explicitly stated in the first paragraph of the text: \"It contained exactly 2,300 transistors... and ran at a clock speed of 740 kHz.\"",
+        "latency_s": 10.73,
+        "token_f1": 0.203,
+        "keyword_match": true,
+        "exact_substring": false,
+        "correct": true
+      }
+    },
+    {
+      "doc_id": "doc_tech_history",
+      "doc_title": "The Evolution of Microprocessor Architecture (1971–2024)",
+      "approx_words": 1030,
+      "approx_tokens": 1373,
+      "question_id": "q1b",
+      "question": "In what year did AMD introduce the AMD64 instruction set, and in which processor family?",
+      "gold_answer": "2003, in the Opteron processor family",
+      "answer_location": "middle",
+      "baseline": {
+        "answer": "Advanced Micro Devices (AMD) introduced the AMD64 instruction set in the Opteron processor family released in April 2003.",
+        "latency_s": 19.5,
+        "token_f1": 0.5,
+        "keyword_match": true,
+        "exact_substring": false,
+        "correct": true
+      },
+      "pipeline": {
+        "answer": "Based on the provided document, Advanced Micro Devices (AMD) introduced the AMD64 instruction set in April 2003 within the Opteron processor family.\n\nThe text states: \"Advanced Micro Devices (AMD) introduced the AMD64 instruction set in the Opteron processor family released in April 2003.\"",
+        "latency_s": 10.34,
+        "token_f1": 0.245,
+        "keyword_match": true,
+        "exact_substring": false,
+        "correct": true
+      }
+    },
+    {
+      "doc_id": "doc_tech_history",
+      "doc_title": "The Evolution of Microprocessor Architecture (1971–2024)",
+      "approx_words": 1030,
+      "approx_tokens": 1373,
+      "question_id": "q1c",
+      "question": "How many transistors does Nvidia's H100 GPU contain, and what is its FP8 Tensor Core performance?",
+      "gold_answer": "80 billion transistors and 3,958 TFLOPS of FP8 Tensor Core performance",
+      "answer_location": "late",
+      "baseline": {
+        "answer": "",
+        "latency_s": 19.54,
+        "token_f1": 0.0,
+        "keyword_match": false,
+        "exact_substring": false,
+        "correct": false
+      },
+      "pipeline": {
+        "answer": "── What it is ──\nNvidia's H100 GPU is a high-performance computing chip manufactured on TSMC's 4N process node, designed for advanced scientific workloads and deep learning tasks.\n\n── Key formula ──\nTransistor Count: 80 billion\nFP8 Tensor Core Performance: 3,958 TFLOPS\n\n── Small example ──\nIf you were comparing it to the Intel 4004 (released in 1971), which had exactly 2,300 transistors, the H100 contains roughly 35 million times more transistors. In terms of raw FP8 Tensor Core performance, the H100 delivers 3,958 TFLOPS.\n\n── Common pitfall ──\nDo not confuse the \"4N\" process node with a standard \"4nm\" node; the document specifies it is a customised 4nm-class node. Also, ensure you cite the specific metric \"FP8 Tensor Core performance\" rather than general floating-point performance when referencing this figure.",
+        "latency_s": 13.66,
+        "token_f1": 0.169,
+        "keyword_match": true,
+        "exact_substring": false,
+        "correct": true
+      }
+    },
+    {
+      "doc_id": "doc_climate",
+      "doc_title": "Global Climate Indicators: A Synthesis of 2023 Data",
+      "approx_words": 1015,
+      "approx_tokens": 1353,
+      "question_id": "q2a",
+      "question": "What global mean surface temperature anomaly was recorded in 2023, and how does it compare to the 2016 record?",
+      "gold_answer": "1.45°C above pre-industrial baseline; the 2016 record was approximately 1.29°C",
+      "answer_location": "start",
+      "baseline": {
+        "answer": "",
+        "latency_s": 19.44,
+        "token_f1": 0.0,
+        "keyword_match": false,
+        "exact_substring": false,
+        "correct": false
+      },
+      "pipeline": {
+        "answer": "── What it is ──\nIn 2023, the global mean surface temperature reached a new record high of 1.45°C above the pre-industrial baseline (defined as the 1850–1900 average). This value surpasses the previous record set in 2016, which was approximately 1.29°C.\n\n── Intuition ──\nThis means that Earth's atmosphere and land surface were significantly warmer in 2023 than at any point in recorded history, with a temperature anomaly of +1.45°C relative to the pre-industrial era. The increase from the 2016 record indicates an accelerating warming trend driven by continued greenhouse gas emissions and climate feedbacks.\n\n── Key formula ──\nTemperature Anomaly (2023) = 1.45°C above pre-industrial baseline \nPrevious Record (2016) ≈ 1.29°C above pre-industrial baseline \nIncrease from 2016 to 2023 = 1.45°C − 1.29°C = 0.16°C\n\n── Small example ──\nIf the pre-industrial average (1850–1900) is taken as 0°C for simplicity: \n- In 2016, global temperature ≈ 0 + 1.29 = 1.29°C \n- In 2023, global temperature ≈ 0 + 1.45 = 1.45°C \nThus, 2023 was about 0.16°C warmer than the 2016 record.\n\n── Common pitfall ──\nA common mistake is to confuse \"global mean surface temperature\" with other climate indicators like ocean heat content or atmospheric CO₂ concentration. The document specifies that the 1.45°C figure refers specifically to global mean surface temperature, not ocean heat content (which reached a new record in upper 2,000 metres) or greenhouse gas concentrations (e.g., CO₂ at 420.0 ppm).",
+        "latency_s": 19.01,
+        "token_f1": 0.113,
+        "keyword_match": true,
+        "exact_substring": false,
+        "correct": true
+      }
+    },
+    {
+      "doc_id": "doc_climate",
+      "doc_title": "Global Climate Indicators: A Synthesis of 2023 Data",
+      "approx_words": 1015,
+      "approx_tokens": 1353,
+      "question_id": "q2b",
+      "question": "What was the Antarctic sea ice extent record minimum set in February 2023?",
+      "gold_answer": "1.79 million km²",
+      "answer_location": "early-middle",
+      "baseline": {
+        "answer": "",
+        "latency_s": 20.11,
+        "token_f1": 0.0,
+        "keyword_match": false,
+        "exact_substring": false,
+        "correct": false
+      },
+      "pipeline": {
+        "answer": "The Antarctic sea ice extent record minimum set in February 2023 was 1.79 million km².\n\nFinal answer: 1.79 million km²",
+        "latency_s": 9.77,
+        "token_f1": 0.308,
+        "keyword_match": true,
+        "exact_substring": true,
+        "correct": true
+      }
+    },
+    {
+      "doc_id": "doc_climate",
+      "doc_title": "Global Climate Indicators: A Synthesis of 2023 Data",
+      "approx_words": 1015,
+      "approx_tokens": 1353,
+      "question_id": "q2c",
+      "question": "By how much did the cost of utility-scale solar PV electricity fall between 2010 and 2023?",
+      "gold_answer": "From $0.378/kWh in 2010 to $0.049/kWh in 2023 — a reduction of approximately 87%",
+      "answer_location": "late",
+      "baseline": {
+        "answer": "",
+        "latency_s": 20.18,
+        "token_f1": 0.0,
+        "keyword_match": false,
+        "exact_substring": false,
+        "correct": false
+      },
+      "pipeline": {
+        "answer": "The document states that the weighted average cost of utility-scale solar photovoltaic electricity fell from 0.378/kWh in 2010 to 0.049/kWh in 2023.\n\nCalculation:\n0.378 - 0.049 = $0.329\n\nFinal answer: 0.329",
+        "latency_s": 10.44,
+        "token_f1": 0.473,
+        "keyword_match": true,
+        "exact_substring": false,
+        "correct": true
+      }
+    },
+    {
+      "doc_id": "doc_medical",
+      "doc_title": "mRNA Vaccine Technology: Mechanisms, Development Timeline, and Efficacy Data",
+      "approx_words": 978,
+      "approx_tokens": 1304,
+      "question_id": "q3a",
+      "question": "What key modification did Karikó and Weissman demonstrate in their 2005 paper to reduce immune activation of synthetic mRNA?",
+      "gold_answer": "Substituting uridine with pseudouridine in synthetic mRNA dramatically reduced innate immune activation",
+      "answer_location": "start",
+      "baseline": {
+        "answer": "",
+        "latency_s": 23.92,
+        "token_f1": 0.0,
+        "keyword_match": false,
+        "exact_substring": false,
+        "correct": false
+      },
+      "pipeline": {
+        "answer": "Karikó and Weissman demonstrated that substituting uridine with pseudouridine in synthetic mRNA dramatically reduced innate immune activation.\n\nFinal answer: Substituting uridine with pseudouridine",
+        "latency_s": 8.21,
+        "token_f1": 0.686,
+        "keyword_match": true,
+        "exact_substring": true,
+        "correct": true
+      }
+    },
+    {
+      "doc_id": "doc_medical",
+      "doc_title": "mRNA Vaccine Technology: Mechanisms, Development Timeline, and Efficacy Data",
+      "approx_words": 978,
+      "approx_tokens": 1304,
+      "question_id": "q3b",
+      "question": "What was the vaccine efficacy of Moderna's mRNA-1273 in its Phase 3 COVE trial, and what was the trial size?",
+      "gold_answer": "94.1% efficacy (95% CI: 89.3%–96.8%), with 30,420 participants",
+      "answer_location": "middle",
+      "baseline": {
+        "answer": "",
+        "latency_s": 19.69,
+        "token_f1": 0.0,
+        "keyword_match": false,
+        "exact_substring": false,
+        "correct": false
+      },
+      "pipeline": {
+        "answer": "Moderna's mRNA-1273 Phase 3 trial (COVE study) enrolled 30,420 participants. The primary efficacy analysis showed a vaccine efficacy of 94.1% against symptomatic COVID-19 caused by the original Wuhan strain.\n\nFinal answer: 94.1%, 30,420",
+        "latency_s": 9.31,
+        "token_f1": 0.264,
+        "keyword_match": true,
+        "exact_substring": false,
+        "correct": true
+      }
+    },
+    {
+      "doc_id": "doc_medical",
+      "doc_title": "mRNA Vaccine Technology: Mechanisms, Development Timeline, and Efficacy Data",
+      "approx_words": 978,
+      "approx_tokens": 1304,
+      "question_id": "q3c",
+      "question": "What was the hazard ratio result in the KEYNOTE-942 Phase 2b trial combining mRNA-4157 with pembrolizumab for melanoma?",
+      "gold_answer": "Hazard ratio 0.56 (95% CI: 0.31–1.01), representing a 44% reduction in risk of recurrence or death",
+      "answer_location": "late",
+      "baseline": {
+        "answer": "",
+        "latency_s": 19.63,
+        "token_f1": 0.0,
+        "keyword_match": false,
+        "exact_substring": false,
+        "correct": false
+      },
+      "pipeline": {
+        "answer": "The document states that in the randomised Phase 2b trial (KEYNOTE-942), the combination of pembrolizumab plus mRNA-4157 showed a recurrence-free survival hazard ratio of 0.56 (95% CI: 0.31–1.01; p=0.053) compared with pembrolizumab monotherapy.\n\nFinal answer: 0.56",
+        "latency_s": 9.07,
+        "token_f1": 0.424,
+        "keyword_match": true,
+        "exact_substring": false,
+        "correct": true
+      }
+    },
+    {
+      "doc_id": "doc_economics",
+      "doc_title": "Global Monetary Policy Tightening Cycle 2022–2024: Central Bank Actions and Economic Outcomes",
+      "approx_words": 977,
+      "approx_tokens": 1302,
+      "question_id": "q4a",
+      "question": "What was US headline inflation in June 2022, and when was the last time such a level was recorded?",
+      "gold_answer": "9.1% year-on-year in June 2022; the highest since November 1981",
+      "answer_location": "start",
+      "baseline": {
+        "answer": "",
+        "latency_s": 19.07,
+        "token_f1": 0.0,
+        "keyword_match": false,
+        "exact_substring": false,
+        "correct": false
+      },
+      "pipeline": {
+        "answer": "Headline inflation in the United States reached 9.1% year-on-year in June 2022 — the highest reading since November 1981.\n\nFinal answer: 9.1%, last recorded in November 1981",
+        "latency_s": 8.63,
+        "token_f1": 0.605,
+        "keyword_match": true,
+        "exact_substring": false,
+        "correct": true
+      }
+    },
+    {
+      "doc_id": "doc_economics",
+      "doc_title": "Global Monetary Policy Tightening Cycle 2022–2024: Central Bank Actions and Economic Outcomes",
+      "approx_words": 977,
+      "approx_tokens": 1302,
+      "question_id": "q4b",
+      "question": "What was the total cumulative rate increase by the Federal Reserve between March 2022 and July 2023, and what was the resulting target range?",
+      "gold_answer": "525 basis points, bringing the federal funds rate to 5.25–5.5%",
+      "answer_location": "early",
+      "baseline": {
+        "answer": "",
+        "latency_s": 20.73,
+        "token_f1": 0.0,
+        "keyword_match": false,
+        "exact_substring": false,
+        "correct": false
+      },
+      "pipeline": {
+        "answer": "The document states that the cumulative tightening reached 525 bps between March 2022 and July 2023. This brought the federal funds rate target range to 5.25–5.5%.\n\nFinal answer: 525 bps, 5.25–5.5%",
+        "latency_s": 8.32,
+        "token_f1": 0.4,
+        "keyword_match": true,
+        "exact_substring": false,
+        "correct": true
+      }
+    },
+    {
+      "doc_id": "doc_economics",
+      "doc_title": "Global Monetary Policy Tightening Cycle 2022–2024: Central Bank Actions and Economic Outcomes",
+      "approx_words": 977,
+      "approx_tokens": 1302,
+      "question_id": "q4c",
+      "question": "What were the total assets of First Republic Bank when it was seized and sold to JPMorgan Chase, and on what date did this occur?",
+      "gold_answer": "First Republic Bank had $229.1 billion in assets and was sold to JPMorgan Chase on May 1, 2023",
+      "answer_location": "middle-late",
+      "baseline": {
+        "answer": "",
+        "latency_s": 19.06,
+        "token_f1": 0.0,
+        "keyword_match": false,
+        "exact_substring": false,
+        "correct": false
+      },
+      "pipeline": {
+        "answer": "First Republic Bank had $229.1 billion in assets when it was seized by regulators and sold to JPMorgan Chase on May 1, 2023.\n\nFinal answer: $229.1 billion, May 1, 2023",
+        "latency_s": 8.69,
+        "token_f1": 0.745,
+        "keyword_match": true,
+        "exact_substring": false,
+        "correct": true
+      }
+    },
+    {
+      "doc_id": "doc_ai_survey",
+      "doc_title": "Transformer Architecture Variants and Efficiency Improvements (2017–2024)",
+      "approx_words": 928,
+      "approx_tokens": 1237,
+      "question_id": "q5a",
+      "question": "How many parameters did GPT-3 have, and on how many tokens was it trained?",
+      "gold_answer": "175 billion parameters, trained on approximately 300 billion tokens",
+      "answer_location": "early",
+      "baseline": {
+        "answer": "GPT-3 had",
+        "latency_s": 19.29,
+        "token_f1": 0.0,
+        "keyword_match": false,
+        "exact_substring": false,
+        "correct": false
+      },
+      "pipeline": {
+        "answer": "GPT-3 had 175 billion parameters and was trained on approximately 300 billion tokens.\n\nFinal answer: 175 billion parameters, 300 billion tokens",
+        "latency_s": 8.64,
+        "token_f1": 0.581,
+        "keyword_match": true,
+        "exact_substring": false,
+        "correct": true
+      }
+    },
+    {
+      "doc_id": "doc_ai_survey",
+      "doc_title": "Transformer Architecture Variants and Efficiency Improvements (2017–2024)",
+      "approx_words": 928,
+      "approx_tokens": 1237,
+      "question_id": "q5b",
+      "question": "What was the effective activated parameter count per forward pass in Mixtral 8x7B?",
+      "gold_answer": "Approximately 12.9 billion parameters are activated per forward pass",
+      "answer_location": "middle",
+      "baseline": {
+        "answer": "",
+        "latency_s": 19.52,
+        "token_f1": 0.0,
+        "keyword_match": false,
+        "exact_substring": false,
+        "correct": false
+      },
+      "pipeline": {
+        "answer": "The document states that Mistral AI's Mixtral 8x7B uses an MoE design with 8 experts of 7B parameters each, where each token is routed to 2 of the 8 experts. This yields an effective parameter count of 46.7 billion but activates only approximately 12.9 billion parameters per forward pass.\n\nFinal answer: 12.9 billion",
+        "latency_s": 9.72,
+        "token_f1": 0.239,
+        "keyword_match": true,
+        "exact_substring": false,
+        "correct": true
+      }
+    },
+    {
+      "doc_id": "doc_ai_survey",
+      "doc_title": "Transformer Architecture Variants and Efficiency Improvements (2017–2024)",
+      "approx_words": 928,
+      "approx_tokens": 1237,
+      "question_id": "q5c",
+      "question": "What MMLU score did Gemini Ultra 1.0 achieve, and what did Claude 3 Opus achieve at its March 2024 launch?",
+      "gold_answer": "Gemini Ultra 1.0 achieved 90.0% and Claude 3 Opus achieved 86.8%",
+      "answer_location": "late",
+      "baseline": {
+        "answer": "",
+        "latency_s": 19.09,
+        "token_f1": 0.0,
+        "keyword_match": false,
+        "exact_substring": false,
+        "correct": false
+      },
+      "pipeline": {
+        "answer": "Gemini Ultra 1.0 achieved an MMLU score of 90.0%. Claude 3 Opus achieved an MMLU score of 86.8% at its March 2024 launch.\n\nFinal answer: Gemini Ultra 1.0 achieved 90.0%, and Claude 3 Opus achieved 86.8%.",
+        "latency_s": 9.56,
+        "token_f1": 0.5,
+        "keyword_match": true,
+        "exact_substring": false,
+        "correct": true
+      }
+    }
+  ]
+}

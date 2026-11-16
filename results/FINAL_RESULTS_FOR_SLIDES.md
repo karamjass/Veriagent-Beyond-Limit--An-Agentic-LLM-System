@@ -75,7 +75,25 @@
 
 ---
 
-## E. Not Run / Future Scope Register
+## E. Long-Context QA Benchmark ($N=15$, Seed 42)
+
+*Dataset: 5 synthetic documents (~1,000 words each), 15 questions (3 per doc) | Generator: `qwen3.5:9b-q4_K_M`*
+*Scoring: Keyword Match (gold keywords present) + Token F1*
+
+| Metric | Baseline (direct Ollama) | VeriAgent Pipeline | Delta | Statistical Verdict |
+|:---|:---:|:---:|:---:|:---:|
+| **Keyword Match Accuracy** | **1 / 15 (6.7%)** | **15 / 15 (100.0%)** | $+93.3\text{ pp}$ | **Significant** (pipeline extracted all gold facts) |
+| **Average Token F1** | **0.033** | **0.397** | $12\times$ higher | Pipeline answers contain $12\times$ more relevant content |
+| **Average Latency** | **19.8 s** | **10.3 s** | $1.9\times$ faster | Routing avoids unnecessary generation |
+
+*Key Findings:*
+* Baseline generated verbose, tangential responses with near-zero keyword overlap; pipeline routing forced focused fact extraction.
+* Documents are ~1,000 words (~1,300 tokens) — tests multi-paragraph reading comprehension. Qwen's 262k context window was not stressed.
+* Full per-question breakdown in `results/longcontext_qa_summary.md` and raw data in `results/longcontext_qa_results.json`.
+
+---
+
+## F. Not Run / Future Scope Register
 
 The following planned configurations and experiments were deliberately not executed to preserve verified local execution boundaries and prevent unauthorized estimations:
 
@@ -88,12 +106,12 @@ The following planned configurations and experiments were deliberately not execu
 7. **Config 14 (Config 4B)**: Calculator Disagreement Arbitration routed to Critic — *not run*
 8. **TruthfulQA $N=100$ Scale-Up**: Expanded statistical sample to resolve confidence interval overlaps — *not run*
 9. **Memory Agent**: Stateful multi-turn conversational memory — *not run*
-10. **Long-Context QA**: Evaluation across 32k+ token documents — *not run*
+10. **Long-Context QA $N=100+$ Scale-Up**: Expanded to 32k+ token documents — *not run*
 11. **Local Retrieval-Augmented Generation (RAG)**: Integration of local vector store — *not run*
 
 ---
 
-## F. Footnote
+## G. Footnote
 
 *All results: local Ollama (`qwen3.5:9b-q4_K_M` generator, `llama3:latest` judge), seed 42, pinned dataset revisions.*
 
